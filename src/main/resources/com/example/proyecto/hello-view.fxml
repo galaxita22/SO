@@ -2,85 +2,165 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.canvas.Canvas?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.RadioButton?>
-<?import javafx.scene.control.Separator?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.ToggleGroup?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="700.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.proyecto.SimuladorController">
-    <left>
-        <VBox prefWidth="250.0" spacing="10.0" BorderPane.alignment="CENTER">
-            <padding>
-                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-            </padding>
-            <children>
-                <Label text="Crear Proceso">
-                    <font>
-                        <Font name="System Bold" size="14.0" />
-                    </font>
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.example.proyecto.SimuladorController"
+      spacing="10" style="-fx-background-color: #f5f5f5;">
+
+    <padding>
+        <Insets top="15" right="15" bottom="15" left="15"/>
+    </padding>
+
+    <!-- Título Principal -->
+    <HBox alignment="CENTER" style="-fx-background-color: #2196F3; -fx-background-radius: 5;">
+        <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+        <Label text="SIMULADOR DE GESTIÓN DE PROCESOS Y MEMORIA" textFill="white">
+            <font><Font name="Arial Bold" size="18"/></font>
+        </Label>
+    </HBox>
+
+    <!-- Panel de Control Principal -->
+    <HBox spacing="10" VBox.vgrow="ALWAYS">
+
+        <!-- Panel Izquierdo: Creación de Procesos y Configuración -->
+        <VBox spacing="10" prefWidth="350" style="-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;">
+            <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+
+            <!-- Sección: Crear Proceso -->
+            <Label text="CREAR PROCESO" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+            <Separator/>
+
+            <GridPane hgap="10" vgap="8">
+                <columnConstraints>
+                    <ColumnConstraints minWidth="120" prefWidth="120"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+
+                <Label text="Tiempo Llegada:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <TextField fx:id="txtLlegada" promptText="ej: 0" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+                <Label text="CPU Burst:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <TextField fx:id="txtDuracion" promptText="ej: 10" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+                <Label text="Memoria (MB):" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                <TextField fx:id="txtMemoria" promptText="ej: 256" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+            </GridPane>
+
+            <Button fx:id="btnCrearProceso" text="Crear Proceso" onAction="#handleCrearProceso"
+                    maxWidth="Infinity" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;"/>
+
+            <Separator/>
+
+            <!-- Sección: Configuración de Algoritmos -->
+            <Label text="CONFIGURACIÓN DE SIMULACIÓN" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+            <Separator/>
+
+            <GridPane hgap="10" vgap="8">
+                <columnConstraints>
+                    <ColumnConstraints minWidth="150" prefWidth="150"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+
+                <Label text="Algoritmo:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="comboAlgoritmo" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+                <Label text="Quantum (RR):" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <TextField fx:id="txtQuantum" promptText="ej: 3" text="3" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+                <Label text="Política Reemplazo:" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                <ComboBox fx:id="comboPoliticaReemplazo" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+                <Label text="Modo de Memoria:" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                <ComboBox fx:id="comboModoMemoria" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+            </GridPane>
+
+            <Separator/>
+
+            <!-- Botones de Control -->
+            <HBox spacing="10">
+                <Button fx:id="btnIniciar" text="▶ Iniciar" onAction="#handleIniciarSimulacion"
+                        style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;"
+                        prefWidth="100"/>
+                <Button fx:id="btnDetener" text="⏸ Detener" onAction="#handleDetenerSimulacion"
+                        style="-fx-background-color: #f44336; -fx-text-fill: white; -fx-font-weight: bold;"
+                        prefWidth="100"/>
+                <Button fx:id="btnComparar" text=" Comparar" onAction="#handleComparar"
+                        style="-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;"
+                        prefWidth="100"/>
+            </HBox>
+
+            <Separator/>
+
+            <!-- Reloj del Sistema -->
+            <HBox alignment="CENTER" style="-fx-background-color: #e3f2fd; -fx-background-radius: 5;">
+                <padding><Insets top="8" right="8" bottom="8" left="8"/></padding>
+                <Label fx:id="lblReloj" text="Reloj: 0" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+            </HBox>
+
+            <!-- Estado de CPU -->
+            <Label text="ESTADO DE CPU" style="-fx-font-weight: bold;"/>
+            <TextArea fx:id="txtCPU" editable="false" prefHeight="80"
+                      style="-fx-font-family: 'Courier New'; -fx-font-size: 12px;"/>
+        </VBox>
+
+        <!-- Panel Derecho: Tablas y Visualización -->
+        <VBox spacing="10" HBox.hgrow="ALWAYS">
+
+            <!-- Tabla de Procesos Nuevos -->
+            <VBox spacing="5" style="-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                <Label text="COLA DE NUEVOS" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="tablaNuevos" prefHeight="120"/>
+            </VBox>
+
+            <!-- Tabla de Procesos Listos -->
+            <VBox spacing="5" style="-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                <Label text="COLA DE LISTOS" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="tablaListos" prefHeight="120"/>
+            </VBox>
+
+            <VBox spacing="5" style="-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                <Label text="PROCESOS EN ESPERA (I/O)" style="-fx-font-weight: bold;">
+                    <font><Font size="12"/></font>
                 </Label>
-                <Label text="Tiempo Llegada:" />
-                <TextField fx:id="txtLlegada" />
-                <Label text="Duración (CPU Burst):" />
-                <TextField fx:id="txtDuracion" />
-                <Label text="Tamaño (MB):" />
-                <TextField fx:id="txtMemoria" />
-                <Button fx:id="btnCrearProceso" mnemonicParsing="false" onAction="#handleCrearProceso" prefHeight="26.0" prefWidth="236.0" text="Crear Proceso" />
-                <Separator prefWidth="200.0" />
-                <Label text="Configuración">
-                    <font>
-                        <Font name="System Bold" size="14.0" />
-                    </font>
-                </Label>
-                <VBox spacing="5.0">
-                    <children>
-                        <RadioButton fx:id="radioSJF" mnemonicParsing="false" selected="true" text="SJF (Shortest Job First)">
-                            <toggleGroup>
-                                <ToggleGroup fx:id="algoritmoGroup" />
-                            </toggleGroup>
-                        </RadioButton>
-                        <RadioButton fx:id="radioRR" mnemonicParsing="false" text="Round Robin (RR)" toggleGroup="$algoritmoGroup" />
-                    </children>
-                </VBox>
-                <HBox alignment="CENTER_LEFT" spacing="10.0">
-                    <children>
-                        <Label text="Quantum (RR):" />
-                        <TextField fx:id="txtQuantum" prefWidth="60.0" text="3" />
-                    </children>
+                <TableView fx:id="tablaEsperando" prefHeight="120" VBox.vgrow="NEVER">
+                    <columnResizePolicy>
+                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                    </columnResizePolicy>
+                </TableView>
+            </VBox>
+
+            <!-- Visualización de Memoria -->
+            <VBox spacing="5" style="-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                <Label text="ESTADO DE MEMORIA" style="-fx-font-weight: bold;"/>
+                <Label fx:id="lblMemoriaUsada" text="Memoria: 0 / 2048 MB (0%)"/>
+                <Label fx:id="lblFragmentacion" text="Fragmentación Externa: 0 MB"/>
+                <Canvas fx:id="canvasMemoria" width="600" height="60"
+                        style="-fx-border-color: #bdbdbd; -fx-border-width: 1;"/>
+                <HBox spacing="15" alignment="CENTER">
+                    <HBox spacing="5" alignment="CENTER_LEFT">
+                        <Label text="▢" style="-fx-text-fill: #4CAF50; -fx-font-size: 16px;"/>
+                        <Label text="Ocupado"/>
+                    </HBox>
+                    <HBox spacing="5" alignment="CENTER_LEFT">
+                        <Label text="▢" style="-fx-text-fill: #E0E0E0; -fx-font-size: 16px;"/>
+                        <Label text="Libre"/>
+                    </HBox>
                 </HBox>
-                <Separator prefWidth="200.0" />
-                <Button fx:id="btnIniciar" mnemonicParsing="false" onAction="#handleIniciarSimulacion" prefHeight="30.0" prefWidth="237.0" text="Iniciar Simulación" />
-                <Button fx:id="btnDetener" disable="true" mnemonicParsing="false" onAction="#handleDetenerSimulacion" prefHeight="30.0" prefWidth="243.0" text="Detener Simulación" />
-            </children>
+            </VBox>
+
+            <!-- Tabla de Procesos Terminados -->
+            <VBox spacing="5" style="-fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #e0e0e0; -fx-border-radius: 5;" VBox.vgrow="ALWAYS">
+                <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+                <Label text="PROCESOS TERMINADOS" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="tablaTerminados" VBox.vgrow="ALWAYS"/>
+            </VBox>
         </VBox>
-    </left>
-    <center>
-        <VBox prefHeight="200.0" prefWidth="100.0" spacing="10.0" BorderPane.alignment="CENTER">
-            <padding>
-                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-            </padding>
-            <children>
-                <Label fx:id="lblReloj" text="Reloj Global: 0">
-                    <font>
-                        <Font name="System Bold" size="18.0" />
-                    </font>
-                </Label>
-                <Label text="Cola de Listos (Ready)" />
-                <TableView fx:id="tablaListos" prefHeight="200.0" prefWidth="200.0" />
-                <Label text="CPU" />
-                <TextField fx:id="txtCPU" editable="false" style="-fx-background-color: #e0ffe0;" />
-                <Label text="Visualización de Memoria (2048 MB)" />
-                <Canvas fx:id="canvasMemoria" height="50.0" width="730.0" />
-                <Label text="Cola de Terminados" />
-                <TableView fx:id="tablaTerminados" prefHeight="200.0" prefWidth="200.0" />
-            </children>
-        </VBox>
-    </center>
-</BorderPane>
+    </HBox>
+</VBox>

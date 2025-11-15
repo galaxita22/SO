@@ -1,26 +1,24 @@
 package com.example.proyecto;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.ListIterator;
-
-/*
- * Esta clase maneja la memoria RAM de 2GB.
- * Decide dónde poner un proceso (asignación) y qué hacer cuando se va (liberación).
- * Utiliza una estrategia de Partición Dinámica con el algoritmo First-Fit.
+import java.util.*;
+/**
+ * Gestor de memoria mejorado con soporte para:
+ * - Partición Dinámica (First-Fit)
+ * - Paginación Simple
+ * - Políticas de reemplazo: FIFO y LRU
  */
 public class GestorMemoria {
 
-    /*
-     * Clase interna que representa un "pedazo" de memoria.
-     * Puede estar libre (pidProceso = null) u ocupado (pidProceso = ID).
-     */
+    // Configuración de paginación
+    private static final int TAMANO_PAGINA = 4; // 4 MB por página
+    private final int numPaginasTotal;
+
+    // Estructuras para partición dinámica
     static class BloqueMemoria {
-        int id; // ID único del bloque (pal debug)
-        int inicio; // Dónde empieza (en MB)
-        int tamano; // Cuántos MB ocupa
-        Integer pidProceso; // null si está libre, o el PID del proceso que lo ocupa
+        int id;
+        int inicio;
+        int tamano;
+        Integer pidProceso;
 
         BloqueMemoria(int id, int inicio, int tamano, Integer pidProceso) {
             this.id = id;
@@ -33,7 +31,6 @@ public class GestorMemoria {
             return pidProceso != null;
         }
 
-        // Getters/Setters necesarios para la lógica de fusión
         public int getInicio() { return inicio; }
         public int getTamano() { return tamano; }
         public void setTamano(int tamano) { this.tamano = tamano; }
@@ -45,170 +42,506 @@ public class GestorMemoria {
         }
     }
 
-    // --- Atributos del GestorMemoria ---
-    final int tamanoTotal; // en MB
+    // Estructuras para paginación
+    static class Pagina {
+        int numeroPagina;
+        Integer pidProceso; // null si está libre
+        long ultimoAcceso; // Para LRU
+        long tiempoAsignacion; // Para FIFO
+
+
+        Pagina(int numeroPagina) {
+            this.numeroPagina = numeroPagina;
+            this.pidProceso = null;
+            this.ultimoAcceso = 0;
+            this.tiempoAsignacion = 0;
+        }
+
+        public boolean isLibre() {
+            return pidProceso == null;
+        }
+    }
+
+    // Atributos principales
+    final int tamanoTotal;
     private List<BloqueMemoria> bloquesLibres;
     private List<BloqueMemoria> bloquesOcupados;
-    private int proximoIdBloque = 0; // Contador para los IDs de bloques
+    private int proximoIdBloque = 0;
 
+    // Sistema de paginación
+    private Pagina[] tablaPaginas;
+    private Map<Integer, List<Integer>> tablaPaginasPorProceso; // PID -> Lista de números de página
+    private long contadorTiempo = 0; // Para FIFO y LRU
+
+    // Modo de operación
+    public enum ModoMemoria {
+        PARTICION_DINAMICA,
+        PAGINACION
+    }
+    private ModoMemoria modo = ModoMemoria.PARTICION_DINAMICA;
+
+    // Política de reemplazo
+    public enum PoliticaReemplazo {
+        FIFO,
+        LRU
+    }
+    private PoliticaReemplazo politicaReemplazo = PoliticaReemplazo.FIFO;
+
+    /**
+     * Constructor principal
+     */
     public GestorMemoria(int tamanoTotalMB) {
         this.tamanoTotal = tamanoTotalMB;
         this.bloquesOcupados = new ArrayList<>();
         this.bloquesLibres = new ArrayList<>();
-
-        // La memoria empieza como un único, gigantesco bloque libre.
         this.bloquesLibres.add(new BloqueMemoria(proximoIdBloque++, 0, tamanoTotalMB, null));
-        System.out.println("Memoria inicializada: " + tamanoTotalMB + " MB");
+
+        // Inicializar sistema de paginación
+        this.numPaginasTotal = tamanoTotalMB / TAMANO_PAGINA;
+        this.tablaPaginas = new Pagina[numPaginasTotal];
+        this.tablaPaginasPorProceso = new HashMap<>();
+
+        for (int i = 0; i < numPaginasTotal; i++) {
+            tablaPaginas[i] = new Pagina(i);
+        }
+
+        System.out.println("✓ Memoria inicializada: " + tamanoTotalMB + " MB");
+        System.out.println("  • Páginas totales: " + numPaginasTotal + " (" + TAMANO_PAGINA + " MB c/u)");
     }
 
-    /*
-     * Intenta asignar memoria a un proceso usando la estrategia First-Fit.
-     * First-Fit: Busca en la lista de bloques libres y usa el *primero* que encuentre
-     * donde quepa el proceso.
+    /**
+     * Cambia el modo de gestión de memoria
+     */
+    public void setModo(ModoMemoria modo) {
+        this.modo = modo;
+        System.out.println("Modo de memoria cambiado a: " + modo);
+    }
+
+
+
+    /**
+     * Cambia la política de reemplazo
+     */
+    public void setPoliticaReemplazo(PoliticaReemplazo politica) {
+        this.politicaReemplazo = politica;
+        System.out.println("Política de reemplazo cambiada a: " + politica);
+    }
+
+    /**
+     * Asigna memoria a un proceso según el modo configurado
      */
     public boolean asignarMemoria(Proceso proceso) {
-        int tamanoRequerido = proceso.getTamanoMemoria();
-        System.out.println("Intentando asignar " + tamanoRequerido + "MB al proceso " + proceso.getPid());
+        if (modo == ModoMemoria.PAGINACION) {
+            return asignarMemoriaPaginacion(proceso);
+        } else {
+            return asignarMemoriaParticionDinamica(proceso);
+        }
+    }
 
-        // Usamos ListIterator porque nos permite modificar la lista (eliminar/actualizar bloques)
-        // mientras la recorremos. Es más seguro que un 'for-each'.
+    /**
+     * Asignación con partición dinámica (First-Fit)
+     */
+    private boolean asignarMemoriaParticionDinamica(Proceso proceso) {
+        int tamanoRequerido = proceso.getTamanoMemoria();
+        System.out.println("→ Asignando " + tamanoRequerido + "MB al proceso " + proceso.getPid() + " (Partición Dinámica)");
+
         ListIterator<BloqueMemoria> iter = bloquesLibres.listIterator();
 
         while (iter.hasNext()) {
             BloqueMemoria bloqueLibre = iter.next();
 
-            // ¿Cabe el proceso en este bloque libre?
             if (bloqueLibre.getTamano() >= tamanoRequerido) {
-                System.out.println("Bloque encontrado: " + bloqueLibre.getTamano() + "MB en posición " + bloqueLibre.getInicio());
-
-                //Crear el nuevo bloque que SÍ estará ocupado
                 BloqueMemoria nuevoBloqueOcupado = new BloqueMemoria(
                         proximoIdBloque++,
-                        bloqueLibre.getInicio(), // Empieza donde empezaba el libre
-                        tamanoRequerido,         // Con el tamaño que necesita el proceso
-                        proceso.getPid()         // Asociado a este PID
+                        bloqueLibre.getInicio(),
+                        tamanoRequerido,
+                        proceso.getPid()
                 );
                 bloquesOcupados.add(nuevoBloqueOcupado);
 
-                //Achicar o eliminar el bloque libre original
                 if (bloqueLibre.getTamano() == tamanoRequerido) {
-                    // Si cabía justo, el bloque libre desaparece.
-                    System.out.println("Bloque usado completamente, eliminando de libres");
-                    iter.remove(); // iter.remove() elimina el bloque 'bloqueLibre'
+                    iter.remove();
                 } else {
-                    // Si el bloque libre era más grande, lo achicamos.
-                    // Esto crea "fragmentación interna" (en el bloque, aunque aquí es externa)
-                    System.out.println("Fragmentando bloque: quedan " + (bloqueLibre.getTamano() - tamanoRequerido) + "MB libres");
-                    bloqueLibre.inicio += tamanoRequerido; // El inicio se "corre"
-                    bloqueLibre.tamano -= tamanoRequerido; // El tamaño se reduce
+                    bloqueLibre.inicio += tamanoRequerido;
+                    bloqueLibre.tamano -= tamanoRequerido;
                 }
 
-                System.out.println("Memoria asignada exitosamente al proceso " + proceso.getPid());
+                System.out.println("✓ Memoria asignada exitosamente");
                 return true;
             }
         }
 
-        // Si salimos del bucle sin retornar 'true', es que no encontramos espacio.
-        System.out.println("No hay memoria suficiente (contigua) para el proceso " + proceso.getPid());
+        System.out.println("✗ No hay memoria contigua suficiente");
         return false;
     }
 
-    /*
-     * Libera la memoria que estaba usando un proceso cuando termina.
-     * Busca todos los bloques asociados a ese PID y los convierte en bloques libres.
+    /**
+     * Asignación con paginación
+     */
+    private boolean asignarMemoriaPaginacion(Proceso proceso) {
+        int tamanoRequerido = proceso.getTamanoMemoria();
+        int paginasNecesarias = (int) Math.ceil(tamanoRequerido / (double) TAMANO_PAGINA);
+
+        System.out.println("→ Asignando " + tamanoRequerido + "MB al proceso " + proceso.getPid() +
+                " (Paginación: " + paginasNecesarias + " páginas)");
+
+        // Buscar páginas libres
+        List<Integer> paginasLibres = new ArrayList<>();
+        for (int i = 0; i < tablaPaginas.length; i++) {
+            if (tablaPaginas[i].isLibre()) {
+                paginasLibres.add(i);
+                if (paginasLibres.size() == paginasNecesarias) {
+                    break;
+                }
+            }
+        }
+
+        // Si no hay suficientes páginas libres, aplicar política de reemplazo
+        if (paginasLibres.size() < paginasNecesarias) {
+            int paginasALiberar = paginasNecesarias - paginasLibres.size();
+            List<Integer> paginasReemplazadas = aplicarPoliticaReemplazo(paginasALiberar);
+
+            if (paginasReemplazadas != null) {
+                paginasLibres.addAll(paginasReemplazadas);
+                System.out.println("  ⟳ Reemplazo aplicado: " + paginasALiberar + " páginas liberadas");
+            } else {
+                System.out.println("✗ No se pudo aplicar reemplazo");
+                return false;
+            }
+        }
+
+        // Asignar las páginas al proceso
+        List<Integer> paginasAsignadas = new ArrayList<>();
+        for (int i = 0; i < paginasNecesarias; i++) {
+            int numPagina = paginasLibres.get(i);
+            tablaPaginas[numPagina].pidProceso = proceso.getPid();
+            tablaPaginas[numPagina].tiempoAsignacion = contadorTiempo++;
+            tablaPaginas[numPagina].ultimoAcceso = contadorTiempo;
+            paginasAsignadas.add(numPagina);
+        }
+
+        tablaPaginasPorProceso.put(proceso.getPid(), paginasAsignadas);
+        System.out.println("✓ Páginas asignadas: " + paginasAsignadas);
+        return true;
+    }
+
+    /**
+     * Aplica la política de reemplazo seleccionada
+     */
+    private List<Integer> aplicarPoliticaReemplazo(int cantidad) {
+        if (politicaReemplazo == PoliticaReemplazo.FIFO) {
+            return aplicarFIFO(cantidad);
+        } else {
+            return aplicarLRU(cantidad);
+        }
+    }
+
+    /**
+     * Política FIFO: Reemplaza las páginas más antiguas
+     */
+    private List<Integer> aplicarFIFO(int cantidad) {
+        System.out.println("  Aplicando FIFO para liberar " + cantidad + " páginas...");
+
+        List<Pagina> paginasOcupadas = new ArrayList<>();
+        for (Pagina p : tablaPaginas) {
+            if (!p.isLibre()) {
+                paginasOcupadas.add(p);
+            }
+        }
+
+        if (paginasOcupadas.size() < cantidad) {
+            return null; // No hay suficientes páginas para reemplazar
+        }
+
+        // Ordenar por tiempo de asignación (más antiguas primero)
+        paginasOcupadas.sort(Comparator.comparingLong(p -> p.tiempoAsignacion));
+
+        List<Integer> paginasLiberadas = new ArrayList<>();
+        for (int i = 0; i < cantidad; i++) {
+            Pagina p = paginasOcupadas.get(i);
+            int pid = p.pidProceso;
+
+            // Remover de la tabla del proceso
+            tablaPaginasPorProceso.get(pid).remove(Integer.valueOf(p.numeroPagina));
+
+            // Liberar la página
+            p.pidProceso = null;
+            paginasLiberadas.add(p.numeroPagina);
+
+            System.out.println("    FIFO: Página " + p.numeroPagina + " (PID " + pid + ") reemplazada");
+        }
+
+        return paginasLiberadas;
+    }
+
+    /**
+     * Política LRU: Reemplaza las páginas menos recientemente usadas
+     */
+    private List<Integer> aplicarLRU(int cantidad) {
+        System.out.println("  Aplicando LRU para liberar " + cantidad + " páginas...");
+
+        List<Pagina> paginasOcupadas = new ArrayList<>();
+        for (Pagina p : tablaPaginas) {
+            if (!p.isLibre()) {
+                paginasOcupadas.add(p);
+            }
+        }
+
+        if (paginasOcupadas.size() < cantidad) {
+            return null;
+        }
+
+        // Ordenar por último acceso (menos recientes primero)
+        paginasOcupadas.sort(Comparator.comparingLong(p -> p.ultimoAcceso));
+
+        List<Integer> paginasLiberadas = new ArrayList<>();
+        for (int i = 0; i < cantidad; i++) {
+            Pagina p = paginasOcupadas.get(i);
+            int pid = p.pidProceso;
+
+            tablaPaginasPorProceso.get(pid).remove(Integer.valueOf(p.numeroPagina));
+            p.pidProceso = null;
+            paginasLiberadas.add(p.numeroPagina);
+
+            System.out.println("    LRU: Página " + p.numeroPagina + " (PID " + pid + ") reemplazada");
+        }
+
+        return paginasLiberadas;
+    }
+
+    /**
+     * Simula un acceso a memoria (actualiza LRU)
+     */
+    public void accederMemoria(Proceso proceso) {
+        if (modo == ModoMemoria.PAGINACION && tablaPaginasPorProceso.containsKey(proceso.getPid())) {
+            List<Integer> paginas = tablaPaginasPorProceso.get(proceso.getPid());
+            for (Integer numPagina : paginas) {
+                tablaPaginas[numPagina].ultimoAcceso = contadorTiempo++;
+            }
+        }
+    }
+
+    /**
+     * Retorna todos los bloques de memoria para visualización
+     */
+    public List<BloqueMemoria> getTodosLosBloques() {
+        if (modo == ModoMemoria.PAGINACION) {
+            // Convertir páginas a bloques visuales
+            List<BloqueMemoria> bloques = new ArrayList<>();
+            int i = 0;
+
+            while (i < tablaPaginas.length) {
+                Pagina paginaActual = tablaPaginas[i];
+                int tamanoBloque = TAMANO_PAGINA;
+                int inicioBloque = i;
+                Integer pidActual = paginaActual.pidProceso;
+
+                // ✅ Agrupar páginas consecutivas del mismo proceso
+                while (i + 1 < tablaPaginas.length &&
+                        // Comparar si ambas tienen el mismo estado (ocupada/libre)
+                        (tablaPaginas[i + 1].pidProceso == null) == (pidActual == null) &&
+                        // Si están ocupadas, deben tener el mismo PID
+                        Objects.equals(tablaPaginas[i + 1].pidProceso, pidActual)) {
+                    i++;
+                    tamanoBloque += TAMANO_PAGINA;
+                }
+
+                // ✅ Crear bloque con los 4 parámetros requeridos
+                BloqueMemoria bloque = new BloqueMemoria(
+                        inicioBloque,                    // id
+                        inicioBloque * TAMANO_PAGINA,    // inicio
+                        tamanoBloque,                     // tamano
+                        pidActual                         // pidProceso (puede ser null si está libre)
+                );
+
+                bloques.add(bloque);
+                i++;
+            }
+
+            System.out.println("  📦 Bloques visuales generados: " + bloques.size());
+            return bloques;
+
+        } else {
+            // Combinar bloques libres y ocupados ordenados
+            List<BloqueMemoria> todos = new ArrayList<>();
+            todos.addAll(bloquesOcupados);
+            todos.addAll(bloquesLibres);
+            todos.sort(Comparator.comparingInt(b -> b.inicio));
+
+            System.out.println("  📦 Bloques (Partición Dinámica): " + todos.size());
+            return todos;
+        }
+    }
+
+
+    /**
+     * Libera la memoria de un proceso
      */
     public void liberarMemoria(Proceso proceso) {
+        if (modo == ModoMemoria.PAGINACION) {
+            liberarMemoriaPaginacion(proceso);
+        } else {
+            liberarMemoriaParticionDinamica(proceso);
+        }
+    }
+
+    private void liberarMemoriaParticionDinamica(Proceso proceso) {
         System.out.println("Liberando memoria del proceso " + proceso.getPid());
         List<BloqueMemoria> bloquesRecienLiberados = new ArrayList<>();
 
-        //Encontrar los bloques del proceso en la lista de OCUPADOS
         ListIterator<BloqueMemoria> iter = bloquesOcupados.listIterator();
         while (iter.hasNext()) {
             BloqueMemoria bloqueOcupado = iter.next();
             if (bloqueOcupado.pidProceso == proceso.getPid()) {
-                // Lo encontramos. Lo sacamos de "Ocupados"...
                 iter.remove();
-                //lo guardamos para convertirlo en "Libre"
                 bloquesRecienLiberados.add(bloqueOcupado);
             }
         }
 
-        //Convertir esos bloques a "libres"
         for (BloqueMemoria bloque : bloquesRecienLiberados) {
-            System.out.println("Liberando bloque: " + bloque.getTamano() + "MB en posición " + bloque.getInicio());
-            // Lo añadimos a la lista de libres, marcando el PID como null
             bloquesLibres.add(new BloqueMemoria(
-                    bloque.id, // Reusamos el ID (o podríamos crear uno nuevo)
+                    bloque.id,
                     bloque.getInicio(),
                     bloque.getTamano(),
-                    null // ¡Libre!
+                    null
             ));
         }
 
-        // Fusionar bloques libres que quedaron juntos
-        // Si liberamos [A] y [B] y estaban [Libre][A][B][Libre], ahora tenemos
-        // [Libre][Libre][Libre][Libre]. Hay que unirlos.
-        System.out.println("Fusionando bloques libres adyacentes...");
-        this.fusionarBloquesLibres();
+        fusionarBloquesLibres();
     }
 
-    /*
-     * Limpia la lista de bloques libres juntando "huecos" adyacentes.
-     * [Libre 10MB] [Libre 20MB] -> [Libre 30MB]
-     */
-    private void fusionarBloquesLibres() {
-        if (bloquesLibres.size() <= 1) {
-            return; // No hay nada que fusionar
+    private void liberarMemoriaPaginacion(Proceso proceso) {
+        System.out.println("Liberando páginas del proceso " + proceso.getPid());
+
+        if (!tablaPaginasPorProceso.containsKey(proceso.getPid())) {
+            return;
         }
 
-        //Ordenar SÍ O SÍ por la dirección de inicio.
-        // Si no, no podemos saber si son adyacentes.
+        List<Integer> paginas = tablaPaginasPorProceso.get(proceso.getPid());
+        for (Integer numPagina : paginas) {
+            tablaPaginas[numPagina].pidProceso = null;
+        }
+
+        tablaPaginasPorProceso.remove(proceso.getPid());
+        System.out.println("✓ " + paginas.size() + " páginas liberadas");
+    }
+
+    private void fusionarBloquesLibres() {
+        if (bloquesLibres.size() <= 1) return;
+
         bloquesLibres.sort(Comparator.comparingInt(BloqueMemoria::getInicio));
 
         List<BloqueMemoria> bloquesFusionados = new ArrayList<>();
-        // Empezamos con el primer bloque como nuestro "bloque actual" a comparar
         BloqueMemoria bloqueActual = bloquesLibres.get(0);
 
-        // Recorremos a partir del segundo
         for (int i = 1; i < bloquesLibres.size(); i++) {
             BloqueMemoria siguienteBloque = bloquesLibres.get(i);
 
-            // La condición mágica: ¿El final de 'actual' es el inicio de 'siguiente'?
             if (bloqueActual.getInicio() + bloqueActual.getTamano() == siguienteBloque.getInicio()) {
-                // ¡Son adyacentes!
-                System.out.println("Fusionando bloques: " + bloqueActual.getTamano() + "MB + " + siguienteBloque.getTamano() + "MB");
-                // Hacemos 'actual' más grande para que incluya a 'siguiente'
                 bloqueActual.setTamano(bloqueActual.getTamano() + siguienteBloque.getTamano());
-                // NO añadimos 'actual' a la lista nueva todavía, porque podría
-                // fusionarse también con el que viene después.
             } else {
-                // No son adyacentes. 'bloqueActual' está "terminado".
-                // Lo añadimos a la lista de resultado...
                 bloquesFusionados.add(bloqueActual);
-                // ...y el 'siguiente' se convierte en el nuevo 'actual' para comparar.
                 bloqueActual = siguienteBloque;
             }
         }
 
-        // Al final del bucle, el último 'bloqueActual' (sea fusionado o no)
-        // nunca se añadió a la lista. Lo añadimos ahora.
         bloquesFusionados.add(bloqueActual);
-
-        // Reemplazamos la lista antigua por la nueva lista fusionada.
         this.bloquesLibres = bloquesFusionados;
-        System.out.println("Fusión completada, " + this.bloquesLibres.size() + " bloques libres resultantes");
     }
 
-    /*
-     * Metodo extra para la GUI.
-     * Devuelve una lista con todos los bloques (libres y ocupados)
-     * para que el Canvas (la barrita de memoria) pueda dibujarlos en orden.
+    /**
+     * Métodos de información y estadísticas
      */
-    public List<BloqueMemoria> getTodosLosBloques() {
-        List<BloqueMemoria> todos = new ArrayList<>(bloquesOcupados);
-        todos.addAll(bloquesLibres);
-        // Los ordenamos por inicio para que el Canvas los dibuje en orden (de izq a der)
-        todos.sort(Comparator.comparingInt(BloqueMemoria::getInicio));
-        return todos;
+    // En GestorMemoria.java
+
+    public int calcularMemoriaUsada() {
+        if (modo == ModoMemoria.PAGINACION) {
+            // Contar páginas ocupadas usando !isLibre()
+            int paginasOcupadas = 0;
+            for (Pagina p : tablaPaginas) {
+                if (!p.isLibre()) {  // ✅ Usar isLibre() en lugar de p.ocupada
+                    paginasOcupadas++;
+                }
+            }
+            return paginasOcupadas * TAMANO_PAGINA;
+        } else {
+            // Sumar bloques ocupados
+            int suma = 0;
+            for (BloqueMemoria b : bloquesOcupados) {
+                suma += b.getTamano();
+            }
+            return suma;
+        }
+    }
+
+    public int calcularFragmentacionExterna() {
+        if (modo == ModoMemoria.PAGINACION) {
+            return 0; // La paginación elimina la fragmentación externa
+        }
+
+        int totalLibre = bloquesLibres.stream()
+                .mapToInt(BloqueMemoria::getTamano)
+                .sum();
+
+        int bloqueLibreMasGrande = bloquesLibres.stream()
+                .mapToInt(BloqueMemoria::getTamano)
+                .max()
+                .orElse(0);
+
+        return totalLibre - bloqueLibreMasGrande;
+    }
+
+    /**
+     * Calcula la fragmentación interna (solo para paginación)
+     * La fragmentación interna ocurre en la última página de cada proceso
+     */
+    public int calcularFragmentacionInterna() {
+        if (modo != ModoMemoria.PAGINACION) {
+            return 0; // No hay fragmentación interna en partición dinámica
+        }
+
+        int fragmentacionTotal = 0;
+
+        for (Map.Entry<Integer, List<Integer>> entry : tablaPaginasPorProceso.entrySet()) {
+            int pid = entry.getKey();
+            List<Integer> paginas = entry.getValue();
+
+            if (paginas.isEmpty()) continue;
+
+            // Calcular cuánta memoria realmente usa el proceso
+            // (esto requeriría almacenar el tamaño original, por simplicidad asumimos peor caso)
+
+            // La última página probablemente tiene fragmentación
+            // Fragmentación máxima por proceso = TAMANO_PAGINA - 1 (en el peor caso)
+            // Para ser más preciso, necesitaríamos el tamaño exacto del proceso
+
+            // Estimación conservadora: 50% del tamaño de página por proceso
+            fragmentacionTotal += (TAMANO_PAGINA / 2);
+        }
+
+        return fragmentacionTotal;
+    }
+
+    public Map<String, Object> getEstadisticas() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("modo", modo);
+        stats.put("politica", politicaReemplazo);
+        stats.put("memoriaTotal", tamanoTotal);
+        stats.put("memoriaUsada", calcularMemoriaUsada());
+        stats.put("memoriaLibre", tamanoTotal - calcularMemoriaUsada());
+        stats.put("fragmentacionExterna", calcularFragmentacionExterna());
+        stats.put("fragmentacionInterna", calcularFragmentacionInterna());
+
+        if (modo == ModoMemoria.PAGINACION) {
+            int paginasLibres = 0;
+            for (Pagina p : tablaPaginas) {
+                if (p.isLibre()) paginasLibres++;
+            }
+            stats.put("paginasLibres", paginasLibres);
+            stats.put("paginasUsadas", numPaginasTotal - paginasLibres);
+            stats.put("tamanoPagina", TAMANO_PAGINA);
+        }
+
+        return stats;
     }
 }
