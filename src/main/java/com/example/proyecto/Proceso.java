@@ -19,7 +19,6 @@ public class Proceso {
 
     // Parámetros para estadísticas finales
     //Se inicializan en -1 para saber si ya han sido seteados o no.
-
     // Cuándo el proceso se movió a EJECUTANDO por PRIMERA VEZ
     private long tiempoInicioEjecucion = -1;
 
@@ -38,18 +37,16 @@ public class Proceso {
     // Tiempo de Respuesta (Response): InicioEjecucion - Llegada
     private long tiempoRespuesta = -1;
 
-
     public Proceso(int pid, long tiempoLlegada, long duracionCPU, int tamanoMemoria) {
         this.pid = pid;
         this.tiempoLlegada = tiempoLlegada;
         this.duracionCPU = duracionCPU;
         this.tamanoMemoria = tamanoMemoria;
         this.estado = EstadoProceso.NUEVO; // Todos nacen "Nuevos"
-        this.tiempoCPUrestante = duracionCPU; // Al inicio, lo que falta es el total
+        this.tiempoCPUrestante = duracionCPU;
     }
 
     //Getters y Setters
-
     public int getPid() {
         return pid;
     }
@@ -117,9 +114,11 @@ public class Proceso {
     public EstadoProceso getEstado() {
         return estado;
     }
+
     public void setEstado(EstadoProceso estado) {
         this.estado = estado;
     }
+
     public long getTiempoFinalizacion() {
         return tiempoFinalizacion;
     }
@@ -144,7 +143,6 @@ public class Proceso {
         this.tiempoEnCPU = tiempoEnCPU;
     }
 
-
     //Métodos lógica del proceso
 
     /*
@@ -168,7 +166,7 @@ public class Proceso {
 
     @Override
     public String toString() {
-        // Un resumen rápido para debugging o para mostrar en el campo de texto de la CPU
+
         return String.format("PID[%d] (Est: %s, Dur: %d, Rest: %d, Mem: %dMB)",
                 pid, estado.toString(), duracionCPU, tiempoCPUrestante, tamanoMemoria);
     }
