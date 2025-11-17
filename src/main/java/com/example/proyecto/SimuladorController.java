@@ -14,7 +14,6 @@ import javafx.collections.ObservableList;
 import javafx.animation.FadeTransition;
 import javafx.animation.ScaleTransition;
 
-
 import javafx.scene.chart.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -23,31 +22,52 @@ import javafx.scene.Scene;
 import java.util.*;
 
 /**
- * Controlador mejorado con soporte para múltiples algoritmos y políticas de reemplazo
+ * Controlador mejorado con soporte para múltiples algoritmos y políticas de
+ * reemplazo
  */
 public class SimuladorController {
 
     // --- Enlaces a la Vista ---
-    @FXML private ComboBox<String> comboModoMemoria;
-    @FXML private Button btnComparar;
-    @FXML private TextField txtLlegada;
-    @FXML private TextField txtDuracion;
-    @FXML private TextField txtMemoria;
-    @FXML private Button btnCrearProceso;
-    @FXML private ComboBox<String> comboAlgoritmo;
-    @FXML private TextField txtQuantum;
-    @FXML private ComboBox<String> comboPoliticaReemplazo;
-    @FXML private Button btnIniciar;
-    @FXML private Button btnDetener;
-    @FXML private Label lblReloj;
-    @FXML private TableView<Proceso> tablaListos;
-    @FXML private TableView<Proceso> tablaNuevos;
-    @FXML private TableView<Proceso> tablaEsperando;  
-    @FXML private TextArea txtCPU;
-    @FXML private Canvas canvasMemoria;
-    @FXML private TableView<Proceso> tablaTerminados;
-    @FXML private Label lblMemoriaUsada;
-    @FXML private Label lblFragmentacion;
+    @FXML
+    private ComboBox<String> comboModoMemoria;
+    @FXML
+    private Button btnComparar;
+    @FXML
+    private TextField txtLlegada;
+    @FXML
+    private TextField txtDuracion;
+    @FXML
+    private TextField txtMemoria;
+    @FXML
+    private Button btnCrearProceso;
+    @FXML
+    private ComboBox<String> comboAlgoritmo;
+    @FXML
+    private TextField txtQuantum;
+    @FXML
+    private ComboBox<String> comboPoliticaReemplazo;
+    @FXML
+    private Button btnIniciar;
+    @FXML
+    private Button btnDetener;
+    @FXML
+    private Label lblReloj;
+    @FXML
+    private TableView<Proceso> tablaListos;
+    @FXML
+    private TableView<Proceso> tablaNuevos;
+    @FXML
+    private TableView<Proceso> tablaEsperando;
+    @FXML
+    private TextArea txtCPU;
+    @FXML
+    private Canvas canvasMemoria;
+    @FXML
+    private TableView<Proceso> tablaTerminados;
+    @FXML
+    private Label lblMemoriaUsada;
+    @FXML
+    private Label lblFragmentacion;
 
     // --- Atributos de Simulación ---
     private long reloj = 0;
@@ -66,7 +86,7 @@ public class SimuladorController {
     private Proceso[] nucleos;
     private long[] tiempoOciosoNucleos;
     private int[] quantumRestanteNucleos;
-    
+
     // --- I/O y Eventos ---
     private Map<Proceso, Long> tiemposIO = new HashMap<>(); // Proceso -> tiempo restante de I/O
     private Random random = new Random(42); // Para generar eventos I/O aleatorios
@@ -79,58 +99,58 @@ public class SimuladorController {
      * Inicialización del controlador
      */
     @FXML
-public void initialize() {
-    gestorMemoria = new GestorMemoria(2048); // 2GB = 2048 MB
-    
-    this.nucleos = new Proceso[numNucleos];
-    this.tiempoOciosoNucleos = new long[numNucleos];
-    this.quantumRestanteNucleos = new int[numNucleos];
+    public void initialize() {
+        gestorMemoria = new GestorMemoria(2048); // 2GB = 2048 MB
 
-    // Configurar ComboBox de algoritmos
-    comboAlgoritmo.setItems(FXCollections.observableArrayList("SJF", "Round Robin"));
-    comboAlgoritmo.setValue("SJF");
-    
-    // Configurar ComboBox de políticas de reemplazo
-    comboPoliticaReemplazo.setItems(FXCollections.observableArrayList("FIFO", "LRU"));
-    comboPoliticaReemplazo.setValue("FIFO");
+        this.nucleos = new Proceso[numNucleos];
+        this.tiempoOciosoNucleos = new long[numNucleos];
+        this.quantumRestanteNucleos = new int[numNucleos];
 
-    // ✅ CORRECCIÓN: Configurar ComboBox de Modo de Memoria
-    comboModoMemoria.setItems(FXCollections.observableArrayList(
-        "Partición Dinámica", "Paginación"));
-    comboModoMemoria.setValue("Partición Dinámica");
+        // Configurar ComboBox de algoritmos
+        comboAlgoritmo.setItems(FXCollections.observableArrayList("SJF", "Round Robin"));
+        comboAlgoritmo.setValue("SJF");
 
-    // Listener para cambiar modo de memoria
-    comboModoMemoria.valueProperty().addListener((obs, oldVal, newVal) -> {
-        if ("Paginación".equals(newVal)) {
-            gestorMemoria.setModo(GestorMemoria.ModoMemoria.PAGINACION);
-            mostrarInfo("Modo de Memoria", "Cambiado a: Paginación (4 MB por página)");
-        } else {
-            gestorMemoria.setModo(GestorMemoria.ModoMemoria.PARTICION_DINAMICA);
-            mostrarInfo("Modo de Memoria", "Cambiado a: Partición Dinámica (First-Fit)");
-        }
-    });
-    
-    // Conectar política de reemplazo con el gestor
-    comboPoliticaReemplazo.valueProperty().addListener((obs, oldVal, newVal) -> {
-        if ("LRU".equals(newVal)) {
-            gestorMemoria.setPoliticaReemplazo(GestorMemoria.PoliticaReemplazo.LRU);
-            System.out.println("Política de reemplazo cambiada a: LRU");
-        } else {
-            gestorMemoria.setPoliticaReemplazo(GestorMemoria.PoliticaReemplazo.FIFO);
-            System.out.println("Política de reemplazo cambiada a: FIFO");
-        }
-    });
+        // Configurar ComboBox de políticas de reemplazo
+        comboPoliticaReemplazo.setItems(FXCollections.observableArrayList("FIFO", "LRU"));
+        comboPoliticaReemplazo.setValue("FIFO");
 
-    // Listener para habilitar/deshabilitar quantum según algoritmo
-    comboAlgoritmo.valueProperty().addListener((obs, oldVal, newVal) -> {
-        txtQuantum.setDisable(!"Round Robin".equals(newVal));
-    });
+        comboModoMemoria.setItems(FXCollections.observableArrayList(
+                "Partición Dinámica", "Paginación"));
+        comboModoMemoria.setValue("Partición Dinámica");
 
-    txtQuantum.setDisable(true);
+        // Listener para cambiar modo de memoria
+        comboModoMemoria.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if ("Paginación".equals(newVal)) {
+                gestorMemoria.setModo(GestorMemoria.ModoMemoria.PAGINACION);
+                mostrarInfo("Modo de Memoria", "Cambiado a: Paginación (4 MB por página)");
+            } else {
+                gestorMemoria.setModo(GestorMemoria.ModoMemoria.PARTICION_DINAMICA);
+                mostrarInfo("Modo de Memoria", "Cambiado a: Partición Dinámica (First-Fit)");
+            }
+        });
 
-    // Configurar columnas de tablas
-    configurarTablas();
-}
+        // Conectar política de reemplazo con el gestor
+        comboPoliticaReemplazo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if ("LRU".equals(newVal)) {
+                gestorMemoria.setPoliticaReemplazo(GestorMemoria.PoliticaReemplazo.LRU);
+                System.out.println("Política de reemplazo cambiada a: LRU");
+            } else {
+                gestorMemoria.setPoliticaReemplazo(GestorMemoria.PoliticaReemplazo.FIFO);
+                System.out.println("Política de reemplazo cambiada a: FIFO");
+            }
+        });
+
+        // Listener para habilitar/deshabilitar quantum según algoritmo
+        comboAlgoritmo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            txtQuantum.setDisable(!"Round Robin".equals(newVal));
+        });
+
+        txtQuantum.setDisable(true);
+
+        // Configurar columnas de tablas
+        configurarTablas();
+    }
+
     /**
      * Configura las columnas de las TableView
      */
@@ -139,10 +159,10 @@ public void initialize() {
         if (tablaNuevos != null) {
             configurarColumnasTabla(tablaNuevos);
         }
-        
+
         // Tabla de Listos
         configurarColumnasTabla(tablaListos);
-        
+
         // Tabla de Terminados
         configurarColumnasTablaTerminados(tablaTerminados);
 
@@ -152,59 +172,59 @@ public void initialize() {
 
     private void configurarColumnasTabla(TableView<Proceso> tabla) {
         tabla.getColumns().clear();
-        
+
         TableColumn<Proceso, Integer> colPid = new TableColumn<>("PID");
-        colPid.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
-        
+        colPid.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
+
         TableColumn<Proceso, String> colEstado = new TableColumn<>("Estado");
-        colEstado.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleStringProperty(data.getValue().getEstado().toString()));
-        
+        colEstado.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEstado().toString()));
+
         TableColumn<Proceso, Long> colLlegada = new TableColumn<>("Llegada");
-        colLlegada.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoLlegada()).asObject());
-        
+        colLlegada.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoLlegada()).asObject());
+
         TableColumn<Proceso, Long> colDuracion = new TableColumn<>("CPU Burst");
-        colDuracion.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleLongProperty(data.getValue().getDuracionCPU()).asObject());
-        
+        colDuracion.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getDuracionCPU()).asObject());
+
         TableColumn<Proceso, Long> colRestante = new TableColumn<>("Restante");
-        colRestante.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoCPUrestante()).asObject());
-        
+        colRestante.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoCPUrestante()).asObject());
+
         TableColumn<Proceso, Integer> colMemoria = new TableColumn<>("Memoria (MB)");
-        colMemoria.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
-        
+        colMemoria.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
+
         tabla.getColumns().addAll(colPid, colEstado, colLlegada, colDuracion, colRestante, colMemoria);
     }
 
     private void configurarColumnasTablaTerminados(TableView<Proceso> tabla) {
         tabla.getColumns().clear();
-        
+
         TableColumn<Proceso, Integer> colPid = new TableColumn<>("PID");
-        colPid.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
-        
+        colPid.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
+
         TableColumn<Proceso, Long> colEspera = new TableColumn<>("T. Espera");
-        colEspera.setCellValueFactory(data -> 
-            new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoEspera()).asObject());
-        
+        colEspera.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoEspera()).asObject());
+
         TableColumn<Proceso, Long> colRespuesta = new TableColumn<>("T. Respuesta");
         colRespuesta.setCellValueFactory(data -> {
             Proceso p = data.getValue();
             long respuesta = p.getTiempoInicioEjecucion() - p.getTiempoLlegada();
             return new javafx.beans.property.SimpleLongProperty(respuesta).asObject();
         });
-        
+
         TableColumn<Proceso, Long> colRetorno = new TableColumn<>("T. Retorno");
         colRetorno.setCellValueFactory(data -> {
             Proceso p = data.getValue();
             long retorno = p.getTiempoFinalizacion() - p.getTiempoLlegada();
             return new javafx.beans.property.SimpleLongProperty(retorno).asObject();
         });
-        
+
         tabla.getColumns().addAll(colPid, colEspera, colRespuesta, colRetorno);
     }
 
@@ -221,8 +241,8 @@ public void initialize() {
             }
 
             if (memoria > gestorMemoria.tamanoTotal) {
-                mostrarError("Memoria excesiva", 
-                    "El proceso requiere más memoria que el total disponible (" + gestorMemoria.tamanoTotal + " MB)");
+                mostrarError("Memoria excesiva",
+                        "El proceso requiere más memoria que el total disponible (" + gestorMemoria.tamanoTotal + " MB)");
                 return;
             }
 
@@ -230,11 +250,11 @@ public void initialize() {
             colaNuevos.add(p);
 
             if (tablaNuevos != null) {
-            tablaNuevos.setItems(FXCollections.observableArrayList(colaNuevos));
-            tablaNuevos.refresh();
-        }
+                tablaNuevos.setItems(FXCollections.observableArrayList(colaNuevos));
+                tablaNuevos.refresh();
+            }
 
-            System.out.println("✓ Proceso creado: " + p);
+            System.out.println("Proceso creado: " + p);
             txtLlegada.clear();
             txtDuracion.clear();
             txtMemoria.clear();
@@ -272,65 +292,62 @@ public void initialize() {
         mostrarEstadisticasFinales();
     }
 
+    // Método para mostrar comparación de algoritmos
+    @FXML
+    private void handleComparar() {
+        if (colaTerminados.isEmpty()) {
+            mostrarError("Sin Datos", "No hay procesos terminados para comparar.");
+            return;
+        }
 
+        Stage ventanaGraficas = new Stage();
+        ventanaGraficas.setTitle("Comparación de Algoritmos");
 
+        // Crear gráfico de barras
+        CategoryAxis xAxis = new CategoryAxis();
+        NumberAxis yAxis = new NumberAxis();
+        BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
+        barChart.setTitle("Comparación de Tiempos por Proceso");
+        xAxis.setLabel("Proceso");
+        yAxis.setLabel("Tiempo (ticks)");
 
-// Método para mostrar comparación de algoritmos
-@FXML
-private void handleComparar() {
-    if (colaTerminados.isEmpty()) {
-        mostrarError("Sin Datos", "No hay procesos terminados para comparar.");
-        return;
+        // Series de datos
+        XYChart.Series<String, Number> serieEspera = new XYChart.Series<>();
+        serieEspera.setName("Tiempo de Espera");
+
+        XYChart.Series<String, Number> serieRetorno = new XYChart.Series<>();
+        serieRetorno.setName("Tiempo de Retorno");
+
+        XYChart.Series<String, Number> serieRespuesta = new XYChart.Series<>();
+        serieRespuesta.setName("Tiempo de Respuesta");
+
+        for (Proceso p : colaTerminados) {
+            String pid = "P" + p.getPid();
+            serieEspera.getData().add(new XYChart.Data<>(pid, p.getTiempoEspera()));
+            serieRetorno.getData().add(new XYChart.Data<>(pid, p.getTiempoRetorno()));
+            serieRespuesta.getData().add(new XYChart.Data<>(pid, p.getTiempoRespuesta()));
+        }
+
+        barChart.getData().addAll(serieEspera, serieRetorno, serieRespuesta);
+
+        // Calcular promedios
+        double avgEspera = colaTerminados.stream()
+                .mapToLong(Proceso::getTiempoEspera).average().orElse(0);
+        double avgRetorno = colaTerminados.stream()
+                .mapToLong(Proceso::getTiempoRetorno).average().orElse(0);
+        double avgRespuesta = colaTerminados.stream()
+                .mapToLong(Proceso::getTiempoRespuesta).average().orElse(0);
+
+        Label lblPromedios = new Label(String.format(
+                "Promedios - Espera: %.2f | Retorno: %.2f | Respuesta: %.2f",
+                avgEspera, avgRetorno, avgRespuesta));
+        lblPromedios.setStyle("-fx-font-size: 14px; -fx-padding: 10;");
+
+        VBox vbox = new VBox(10, barChart, lblPromedios);
+        Scene scene = new Scene(vbox, 800, 600);
+        ventanaGraficas.setScene(scene);
+        ventanaGraficas.show();
     }
-    
-    Stage ventanaGraficas = new Stage();
-    ventanaGraficas.setTitle("Comparación de Algoritmos");
-    
-    // Crear gráfico de barras
-    CategoryAxis xAxis = new CategoryAxis();
-    NumberAxis yAxis = new NumberAxis();
-    BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
-    barChart.setTitle("Comparación de Tiempos por Proceso");
-    xAxis.setLabel("Proceso");
-    yAxis.setLabel("Tiempo (ticks)");
-    
-    // Series de datos
-    XYChart.Series<String, Number> serieEspera = new XYChart.Series<>();
-    serieEspera.setName("Tiempo de Espera");
-    
-    XYChart.Series<String, Number> serieRetorno = new XYChart.Series<>();
-    serieRetorno.setName("Tiempo de Retorno");
-    
-    XYChart.Series<String, Number> serieRespuesta = new XYChart.Series<>();
-    serieRespuesta.setName("Tiempo de Respuesta");
-    
-    for (Proceso p : colaTerminados) {
-        String pid = "P" + p.getPid();
-        serieEspera.getData().add(new XYChart.Data<>(pid, p.getTiempoEspera()));
-        serieRetorno.getData().add(new XYChart.Data<>(pid, p.getTiempoRetorno()));
-        serieRespuesta.getData().add(new XYChart.Data<>(pid, p.getTiempoRespuesta()));
-    }
-    
-    barChart.getData().addAll(serieEspera, serieRetorno, serieRespuesta);
-    
-    // Calcular promedios
-    double avgEspera = colaTerminados.stream()
-        .mapToLong(Proceso::getTiempoEspera).average().orElse(0);
-    double avgRetorno = colaTerminados.stream()
-        .mapToLong(Proceso::getTiempoRetorno).average().orElse(0);
-    double avgRespuesta = colaTerminados.stream()
-        .mapToLong(Proceso::getTiempoRespuesta).average().orElse(0);
-    
-    Label lblPromedios = new Label(String.format(
-        "Promedios - Espera: %.2f | Retorno: %.2f | Respuesta: %.2f",
-        avgEspera, avgRetorno, avgRespuesta));
-    lblPromedios.setStyle("-fx-font-size: 14px; -fx-padding: 10;");
-    
-    VBox vbox = new VBox(10, barChart, lblPromedios);
-    Scene scene = new Scene(vbox, 800, 600);
-    ventanaGraficas.setScene(scene);
-    ventanaGraficas.show();
-}
 
     /**
      * Paso principal de simulación
@@ -368,29 +385,28 @@ private void handleComparar() {
     }
 
     private void procesarNuevosLlegados() {
-    ListIterator<Proceso> iter = colaNuevos.listIterator();
-    while (iter.hasNext()) {
-        Proceso p = iter.next();
+        ListIterator<Proceso> iter = colaNuevos.listIterator();
+        while (iter.hasNext()) {
+            Proceso p = iter.next();
 
-        if (p.getTiempoLlegada() <= reloj) {
-            System.out.println("  → Intentando asignar " + p.getTamanoMemoria() + " MB al proceso " + p.getPid());
-            
-            if (gestorMemoria.asignarMemoria(p)) {
-                p.setEstado(EstadoProceso.LISTO);
-                colaListos.add(p);
-                iter.remove();
-                animarAsignacionMemoria();
-                
-                
-                int memoriaUsada = gestorMemoria.calcularMemoriaUsada();
-                System.out.println("  ✓ Proceso " + p.getPid() + " movido a LISTO");
-                System.out.println("  📊 Memoria usada: " + memoriaUsada + " / " + gestorMemoria.tamanoTotal + " MB");
-            } else {
-                System.out.println("  ⚠ Proceso " + p.getPid() + " sin memoria disponible, queda en NUEVO");
+            if (p.getTiempoLlegada() <= reloj) {
+                System.out.println("  Intentando asignar " + p.getTamanoMemoria() + " MB al proceso " + p.getPid());
+
+                if (gestorMemoria.asignarMemoria(p)) {
+                    p.setEstado(EstadoProceso.LISTO);
+                    colaListos.add(p);
+                    iter.remove();
+                    animarAsignacionMemoria();
+
+                    int memoriaUsada = gestorMemoria.calcularMemoriaUsada();
+                    System.out.println("  Proceso " + p.getPid() + " movido a LISTO");
+                    System.out.println("  Memoria usada: " + memoriaUsada + " / " + gestorMemoria.tamanoTotal + " MB");
+                } else {
+                    System.out.println("  Proceso " + p.getPid() + " sin memoria disponible, queda en NUEVO");
+                }
             }
         }
     }
-}
 
     private void procesarSwapping() {
         // Implementación básica de swapping
@@ -404,7 +420,7 @@ private void handleComparar() {
                     colaListos.add(p);
                     swapIter.remove();
                     totalSwapsRealizados++;
-                    System.out.println("  ↺ Swap-in: Proceso " + p.getPid() + " regresa de swap");
+                    System.out.println("  Swap-in: Proceso " + p.getPid() + " regresa de swap");
                     break; // Solo uno por tick para no saturar
                 }
             }
@@ -437,7 +453,7 @@ private void handleComparar() {
 
                     totalCambiosContexto++;
                     animarCambioContexto();
-                    System.out.println("  ▶ Núcleo " + i + ": Inicia PID " + procesoSeleccionado.getPid());
+                    System.out.println("  Núcleo " + i + ": Inicia PID " + procesoSeleccionado.getPid());
                 }
             }
         }
@@ -445,7 +461,7 @@ private void handleComparar() {
 
     private Proceso seleccionarProcesoSegunAlgoritmo() {
         String algoritmo = comboAlgoritmo.getValue();
-        
+
         switch (algoritmo) {
             case "SJF":
                 return planificadorSJF();
@@ -457,7 +473,9 @@ private void handleComparar() {
     }
 
     private Proceso planificadorSJF() {
-        if (colaListos.isEmpty()) return null;
+        if (colaListos.isEmpty()) {
+            return null;
+        }
 
         Proceso masCorto = colaListos.get(0);
         for (Proceso p : colaListos) {
@@ -470,7 +488,9 @@ private void handleComparar() {
     }
 
     private Proceso planificadorRR() {
-        if (colaListos.isEmpty()) return null;
+        if (colaListos.isEmpty()) {
+            return null;
+        }
         return colaListos.remove(0);
     }
 
@@ -478,13 +498,13 @@ private void handleComparar() {
         for (int i = 0; i < numNucleos; i++) {
             if (nucleos[i] != null) {
                 nucleos[i].avanzarTiempoCPU();
-                
+
                 if ("Round Robin".equals(comboAlgoritmo.getValue())) {
                     quantumRestanteNucleos[i]--;
                 }
-                
-                System.out.println("  ⚙ Núcleo " + i + ": PID " + nucleos[i].getPid() + 
-                                 " (restante: " + nucleos[i].getTiempoCPUrestante() + ")");
+
+                System.out.println("  Núcleo " + i + ": PID " + nucleos[i].getPid()
+                        + " (restante: " + nucleos[i].getTiempoCPUrestante() + ")");
             } else {
                 tiempoOciosoNucleos[i]++;
             }
@@ -494,21 +514,22 @@ private void handleComparar() {
     private void verificarFinalizacionesYDesalojos() {
         for (int i = 0; i < numNucleos; i++) {
             Proceso p = nucleos[i];
-            if (p == null) continue;
+            if (p == null) {
+                continue;
+            }
 
             // Proceso terminado
             if (p.getTiempoCPUrestante() <= 0) {
-                System.out.println("  ✓ Proceso " + p.getPid() + " TERMINADO");
+                System.out.println("  Proceso " + p.getPid() + " TERMINADO");
                 p.setTiempoFinalizacion(reloj);
                 p.setEstado(EstadoProceso.TERMINADO);
                 gestorMemoria.liberarMemoria(p);
                 colaTerminados.add(p);
                 nucleos[i] = null;
                 totalCambiosContexto++;
-            }
-            // Quantum agotado (solo RR)
+            } // Quantum agotado (solo RR)
             else if ("Round Robin".equals(comboAlgoritmo.getValue()) && quantumRestanteNucleos[i] <= 0) {
-                System.out.println("  ⏰ Quantum agotado para PID " + p.getPid());
+                System.out.println(" Quantum agotado para PID " + p.getPid());
                 p.setEstado(EstadoProceso.LISTO);
                 colaListos.add(p);
                 nucleos[i] = null;
@@ -528,7 +549,7 @@ private void handleComparar() {
         for (Proceso p : colaTerminados) {
             long retorno = p.getTiempoFinalizacion() - p.getTiempoLlegada();
             long respuesta = p.getTiempoInicioEjecucion() - p.getTiempoLlegada();
-            
+
             totalRetorno += retorno;
             totalEspera += p.getTiempoEspera();
             totalRespuesta += respuesta;
@@ -547,33 +568,33 @@ private void handleComparar() {
         double utilizacionCPU = (tiempoTotalCPU / (reloj * numNucleos)) * 100;
 
         String stats = String.format(
-            "═══════════════════════════════════════════\n" +
-            "      ESTADÍSTICAS DE SIMULACIÓN\n" +
-            "═══════════════════════════════════════════\n\n" +
-            "Algoritmo: %s\n" +
-            "Política de Reemplazo: %s\n" +
-            "Tiempo Total: %d ticks\n" +
-            "Procesos Terminados: %d\n\n" +
-            "─── TIEMPOS PROMEDIO ───\n" +
-            "• Tiempo de Retorno:    %.2f ticks\n" +
-            "• Tiempo de Espera:     %.2f ticks\n" +
-            "• Tiempo de Respuesta:  %.2f ticks\n\n" +
-            "─── RENDIMIENTO DEL SISTEMA ───\n" +
-            "• Utilización de CPU:   %.2f%%\n" +
-            "• Cambios de Contexto:  %d\n" +
-            "• Swaps Realizados:     %d\n" +
-            "• Núcleos:              %d\n",
-            comboAlgoritmo.getValue(),
-            comboPoliticaReemplazo.getValue(),
-            reloj,
-            n,
-            avgRetorno,
-            avgEspera,
-            avgRespuesta,
-            utilizacionCPU,
-            totalCambiosContexto,
-            totalSwapsRealizados,
-            numNucleos
+                "═══════════════════════════════════════════\n"
+                + "      ESTADÍSTICAS DE SIMULACIÓN\n"
+                + "═══════════════════════════════════════════\n\n"
+                + "Algoritmo: %s\n"
+                + "Política de Reemplazo: %s\n"
+                + "Tiempo Total: %d ticks\n"
+                + "Procesos Terminados: %d\n\n"
+                + "─── TIEMPOS PROMEDIO ───\n"
+                + "• Tiempo de Retorno:    %.2f ticks\n"
+                + "• Tiempo de Espera:     %.2f ticks\n"
+                + "• Tiempo de Respuesta:  %.2f ticks\n\n"
+                + "─── RENDIMIENTO DEL SISTEMA ───\n"
+                + "• Utilización de CPU:   %.2f%%\n"
+                + "• Cambios de Contexto:  %d\n"
+                + "• Swaps Realizados:     %d\n"
+                + "• Núcleos:              %d\n",
+                comboAlgoritmo.getValue(),
+                comboPoliticaReemplazo.getValue(),
+                reloj,
+                n,
+                avgRetorno,
+                avgEspera,
+                avgRespuesta,
+                utilizacionCPU,
+                totalCambiosContexto,
+                totalSwapsRealizados,
+                numNucleos
         );
 
         Alert alerta = new Alert(Alert.AlertType.INFORMATION);
@@ -587,61 +608,60 @@ private void handleComparar() {
         System.out.println("\n" + stats);
     }
 
-   private void actualizarVistasGUI() {
-    lblReloj.setText("Reloj: " + reloj);
+    private void actualizarVistasGUI() {
+        lblReloj.setText("Reloj: " + reloj);
 
-    // Actualizar tablas
-    ObservableList<Proceso> listaEsperando = FXCollections.observableArrayList(colaEsperando);
-    tablaEsperando.setItems(listaEsperando);
-    tablaEsperando.refresh();
+        // Actualizar tablas
+        ObservableList<Proceso> listaEsperando = FXCollections.observableArrayList(colaEsperando);
+        tablaEsperando.setItems(listaEsperando);
+        tablaEsperando.refresh();
 
-    if (tablaNuevos != null) {
-        tablaNuevos.getItems().setAll(colaNuevos);
-    }
-    tablaListos.getItems().setAll(colaListos);
-    tablaTerminados.getItems().setAll(colaTerminados);
+        if (tablaNuevos != null) {
+            tablaNuevos.getItems().setAll(colaNuevos);
+        }
+        tablaListos.getItems().setAll(colaListos);
+        tablaTerminados.getItems().setAll(colaTerminados);
 
-    // Actualizar información de CPU
-    if (txtCPU != null) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < numNucleos; i++) {
-            if (nucleos[i] != null) {
-                sb.append(String.format("Núcleo %d: PID %d (Restante: %d)\n", 
-                    i, nucleos[i].getPid(), nucleos[i].getTiempoCPUrestante()));
+        // Actualizar información de CPU
+        if (txtCPU != null) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < numNucleos; i++) {
+                if (nucleos[i] != null) {
+                    sb.append(String.format("Núcleo %d: PID %d (Restante: %d)\n",
+                            i, nucleos[i].getPid(), nucleos[i].getTiempoCPUrestante()));
+                } else {
+                    sb.append(String.format("Núcleo %d: OCIOSO\n", i));
+                }
+            }
+            txtCPU.setText(sb.toString());
+        }
+
+        int memoriaUsada = gestorMemoria.calcularMemoriaUsada();
+        int fragExterna = gestorMemoria.calcularFragmentacionExterna();
+        int fragInterna = gestorMemoria.calcularFragmentacionInterna();
+
+        // Actualizar label de memoria usada con porcentaje
+        if (lblMemoriaUsada != null) {
+            lblMemoriaUsada.setText(String.format("Memoria: %d / %d MB (%.1f%%)",
+                    memoriaUsada,
+                    gestorMemoria.tamanoTotal,
+                    (memoriaUsada * 100.0) / gestorMemoria.tamanoTotal));
+        }
+
+        // Actualizar label de fragmentación según el modo
+        if (lblFragmentacion != null) {
+            if (comboModoMemoria != null && "Paginación".equals(comboModoMemoria.getValue())) {
+                lblFragmentacion.setText(String.format(
+                        "Fragmentación - Externa: %d MB | Interna: %d MB",
+                        fragExterna, fragInterna));
             } else {
-                sb.append(String.format("Núcleo %d: OCIOSO\n", i));
+                lblFragmentacion.setText(String.format(
+                        "Fragmentación Externa: %d MB", fragExterna));
             }
         }
-        txtCPU.setText(sb.toString());
+
+        dibujarMemoria();
     }
-
-    
-    int memoriaUsada = gestorMemoria.calcularMemoriaUsada();
-    int fragExterna = gestorMemoria.calcularFragmentacionExterna();
-    int fragInterna = gestorMemoria.calcularFragmentacionInterna();
-
-    // Actualizar label de memoria usada con porcentaje
-    if (lblMemoriaUsada != null) {
-        lblMemoriaUsada.setText(String.format("Memoria: %d / %d MB (%.1f%%)", 
-            memoriaUsada, 
-            gestorMemoria.tamanoTotal, 
-            (memoriaUsada * 100.0) / gestorMemoria.tamanoTotal));
-    }
-
-    // Actualizar label de fragmentación según el modo
-    if (lblFragmentacion != null) {
-        if (comboModoMemoria != null && "Paginación".equals(comboModoMemoria.getValue())) {
-            lblFragmentacion.setText(String.format(
-                "Fragmentación - Externa: %d MB | Interna: %d MB", 
-                fragExterna, fragInterna));
-        } else {
-            lblFragmentacion.setText(String.format(
-                "Fragmentación Externa: %d MB", fragExterna));
-        }
-    }
-
-    dibujarMemoria();
-}
 
     private void dibujarMemoria() {
         GraphicsContext gc = canvasMemoria.getGraphicsContext2D();
@@ -651,7 +671,9 @@ private void handleComparar() {
         double canvasWidth = canvasMemoria.getWidth();
         double canvasHeight = canvasMemoria.getHeight();
 
-        if (bloques.isEmpty()) return;
+        if (bloques.isEmpty()) {
+            return;
+        }
 
         double posX = 0;
         for (GestorMemoria.BloqueMemoria bloque : bloques) {
@@ -662,7 +684,7 @@ private void handleComparar() {
                 gc.fillRect(posX, 0, ancho, canvasHeight);
                 gc.setStroke(Color.web("#2E7D32"));
                 gc.strokeRect(posX, 0, ancho, canvasHeight);
-                
+
                 gc.setFill(Color.WHITE);
                 gc.fillText("P" + bloque.pidProceso, posX + 5, canvasHeight / 2);
             } else {
@@ -670,7 +692,7 @@ private void handleComparar() {
                 gc.fillRect(posX, 0, ancho, canvasHeight);
                 gc.setStroke(Color.web("#9E9E9E"));
                 gc.strokeRect(posX, 0, ancho, canvasHeight);
-                
+
                 gc.setFill(Color.web("#424242"));
                 if (ancho > 30) {
                     gc.fillText("Libre", posX + 5, canvasHeight / 2);
@@ -697,64 +719,64 @@ private void handleComparar() {
     }
 
     private void animarCambioContexto() {
-    FadeTransition fade = new FadeTransition(Duration.millis(200), txtCPU);
-    fade.setFromValue(1.0);
-    fade.setToValue(0.3);
-    fade.setCycleCount(2);
-    fade.setAutoReverse(true);
-    fade.play();
-}
+        FadeTransition fade = new FadeTransition(Duration.millis(200), txtCPU);
+        fade.setFromValue(1.0);
+        fade.setToValue(0.3);
+        fade.setCycleCount(2);
+        fade.setAutoReverse(true);
+        fade.play();
+    }
 
-// Método para animar asignación de memoria
-private void animarAsignacionMemoria() {
-    ScaleTransition scale = new ScaleTransition(Duration.millis(300), canvasMemoria);
-    scale.setFromX(0.98);
-    scale.setFromY(0.98);
-    scale.setToX(1.0);
-    scale.setToY(1.0);
-    scale.setCycleCount(1);
-    scale.play();
-}
+    // Método para animar asignación de memoria
+    private void animarAsignacionMemoria() {
+        ScaleTransition scale = new ScaleTransition(Duration.millis(300), canvasMemoria);
+        scale.setFromX(0.98);
+        scale.setFromY(0.98);
+        scale.setToX(1.0);
+        scale.setToY(1.0);
+        scale.setCycleCount(1);
+        scale.play();
+    }
 
     private void simularEventosIO() {
-    // 1. Generar eventos de I/O aleatorios (10% probabilidad)
-    for (int i = 0; i < numNucleos; i++) {
-        if (nucleos[i] != null && random.nextDouble() < 0.1) {
-            Proceso p = nucleos[i];
-            // Solo si ha ejecutado al menos 2 ticks
-            if (p.getTiempoEnCPU() >= 2) {
-                p.setEstado(EstadoProceso.ESPERANDO);
-                long tiempoIO = (long)(random.nextInt(5) + 3); // 3-7 ticks
-                tiemposIO.put(p, tiempoIO);
-                colaEsperando.add(p);
-                nucleos[i] = null;
-                totalCambiosContexto++;
+        // 1. Generar eventos de I/O aleatorios (10% probabilidad)
+        for (int i = 0; i < numNucleos; i++) {
+            if (nucleos[i] != null && random.nextDouble() < 0.1) {
+                Proceso p = nucleos[i];
+                // Solo si ha ejecutado al menos 2 ticks
+                if (p.getTiempoEnCPU() >= 2) {
+                    p.setEstado(EstadoProceso.ESPERANDO);
+                    long tiempoIO = (long) (random.nextInt(5) + 3); // 3-7 ticks
+                    tiemposIO.put(p, tiempoIO);
+                    colaEsperando.add(p);
+                    nucleos[i] = null;
+                    totalCambiosContexto++;
+                    System.out.println(String.format(
+                            " [CPU %d] Proceso P%d -> I/O (%d ticks)",
+                            i, p.getPid(), tiempoIO));
+                }
+            }
+        }
+
+        // 2. Procesar finalización de operaciones I/O
+        Iterator<Proceso> iter = colaEsperando.iterator();
+        while (iter.hasNext()) {
+            Proceso p = iter.next();
+            long tiempoRestante = tiemposIO.get(p) - 1;
+
+            if (tiempoRestante <= 0) {
+                // I/O completado
+                p.setEstado(EstadoProceso.LISTO);
+                colaListos.add(p);
+                iter.remove();
+                tiemposIO.remove(p);
                 System.out.println(String.format(
-                    "  ⏸ [CPU %d] Proceso P%d -> I/O (%d ticks)", 
-                    i, p.getPid(), tiempoIO));
+                        " Proceso P%d retorna de I/O -> Cola de Listos",
+                        p.getPid()));
+            } else {
+                tiemposIO.put(p, tiempoRestante);
             }
         }
     }
-    
-    // 2. Procesar finalización de operaciones I/O
-    Iterator<Proceso> iter = colaEsperando.iterator();
-    while (iter.hasNext()) {
-        Proceso p = iter.next();
-        long tiempoRestante = tiemposIO.get(p) - 1;
-        
-        if (tiempoRestante <= 0) {
-            // I/O completado
-            p.setEstado(EstadoProceso.LISTO);
-            colaListos.add(p);
-            iter.remove();
-            tiemposIO.remove(p);
-            System.out.println(String.format(
-                "  ▶ Proceso P%d retorna de I/O -> Cola de Listos", 
-                p.getPid()));
-        } else {
-            tiemposIO.put(p, tiempoRestante);
-        }
-    }
-}
 
 }
