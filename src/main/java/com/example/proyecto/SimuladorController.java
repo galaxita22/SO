@@ -14,7 +14,6 @@ import javafx.collections.ObservableList;
 import javafx.animation.FadeTransition;
 import javafx.animation.ScaleTransition;
 
-
 import javafx.scene.chart.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -23,31 +22,52 @@ import javafx.scene.Scene;
 import java.util.*;
 
 /**
- * Controlador mejorado con soporte para múltiples algoritmos y políticas de reemplazo
+ * Controlador mejorado con soporte para múltiples algoritmos y políticas de
+ * reemplazo
  */
 public class SimuladorController {
 
     // --- Enlaces a la Vista ---
-    @FXML private ComboBox<String> comboModoMemoria;
-    @FXML private Button btnComparar;
-    @FXML private TextField txtLlegada;
-    @FXML private TextField txtDuracion;
-    @FXML private TextField txtMemoria;
-    @FXML private Button btnCrearProceso;
-    @FXML private ComboBox<String> comboAlgoritmo;
-    @FXML private TextField txtQuantum;
-    @FXML private ComboBox<String> comboPoliticaReemplazo;
-    @FXML private Button btnIniciar;
-    @FXML private Button btnDetener;
-    @FXML private Label lblReloj;
-    @FXML private TableView<Proceso> tablaListos;
-    @FXML private TableView<Proceso> tablaNuevos;
-    @FXML private TableView<Proceso> tablaEsperando;
-    @FXML private TextArea txtCPU;
-    @FXML private Canvas canvasMemoria;
-    @FXML private TableView<Proceso> tablaTerminados;
-    @FXML private Label lblMemoriaUsada;
-    @FXML private Label lblFragmentacion;
+    @FXML
+    private ComboBox<String> comboModoMemoria;
+    @FXML
+    private Button btnComparar;
+    @FXML
+    private TextField txtLlegada;
+    @FXML
+    private TextField txtDuracion;
+    @FXML
+    private TextField txtMemoria;
+    @FXML
+    private Button btnCrearProceso;
+    @FXML
+    private ComboBox<String> comboAlgoritmo;
+    @FXML
+    private TextField txtQuantum;
+    @FXML
+    private ComboBox<String> comboPoliticaReemplazo;
+    @FXML
+    private Button btnIniciar;
+    @FXML
+    private Button btnDetener;
+    @FXML
+    private Label lblReloj;
+    @FXML
+    private TableView<Proceso> tablaListos;
+    @FXML
+    private TableView<Proceso> tablaNuevos;
+    @FXML
+    private TableView<Proceso> tablaEsperando;
+    @FXML
+    private TextArea txtCPU;
+    @FXML
+    private Canvas canvasMemoria;
+    @FXML
+    private TableView<Proceso> tablaTerminados;
+    @FXML
+    private Label lblMemoriaUsada;
+    @FXML
+    private Label lblFragmentacion;
 
     // --- Atributos de Simulación ---
     private long reloj = 0;
@@ -130,6 +150,7 @@ public class SimuladorController {
         // Configurar columnas de tablas
         configurarTablas();
     }
+
     /**
      * Configura las columnas de las TableView
      */
@@ -153,28 +174,28 @@ public class SimuladorController {
         tabla.getColumns().clear();
 
         TableColumn<Proceso, Integer> colPid = new TableColumn<>("PID");
-        colPid.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
+        colPid.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
 
         TableColumn<Proceso, String> colEstado = new TableColumn<>("Estado");
-        colEstado.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleStringProperty(data.getValue().getEstado().toString()));
+        colEstado.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEstado().toString()));
 
         TableColumn<Proceso, Long> colLlegada = new TableColumn<>("Llegada");
-        colLlegada.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoLlegada()).asObject());
+        colLlegada.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoLlegada()).asObject());
 
         TableColumn<Proceso, Long> colDuracion = new TableColumn<>("CPU Burst");
-        colDuracion.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleLongProperty(data.getValue().getDuracionCPU()).asObject());
+        colDuracion.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getDuracionCPU()).asObject());
 
         TableColumn<Proceso, Long> colRestante = new TableColumn<>("Restante");
-        colRestante.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoCPUrestante()).asObject());
+        colRestante.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoCPUrestante()).asObject());
 
         TableColumn<Proceso, Integer> colMemoria = new TableColumn<>("Memoria (MB)");
-        colMemoria.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
+        colMemoria.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getTamanoMemoria()).asObject());
 
         tabla.getColumns().addAll(colPid, colEstado, colLlegada, colDuracion, colRestante, colMemoria);
     }
@@ -183,12 +204,12 @@ public class SimuladorController {
         tabla.getColumns().clear();
 
         TableColumn<Proceso, Integer> colPid = new TableColumn<>("PID");
-        colPid.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
+        colPid.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleIntegerProperty(data.getValue().getPid()).asObject());
 
         TableColumn<Proceso, Long> colEspera = new TableColumn<>("T. Espera");
-        colEspera.setCellValueFactory(data ->
-                new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoEspera()).asObject());
+        colEspera.setCellValueFactory(data
+                -> new javafx.beans.property.SimpleLongProperty(data.getValue().getTiempoEspera()).asObject());
 
         TableColumn<Proceso, Long> colRespuesta = new TableColumn<>("T. Respuesta");
         colRespuesta.setCellValueFactory(data -> {
@@ -233,7 +254,7 @@ public class SimuladorController {
                 tablaNuevos.refresh();
             }
 
-            System.out.println("✓ Proceso creado: " + p);
+            System.out.println("Proceso creado: " + p);
             txtLlegada.clear();
             txtDuracion.clear();
             txtMemoria.clear();
@@ -270,9 +291,6 @@ public class SimuladorController {
 
         mostrarEstadisticasFinales();
     }
-
-
-
 
     // Método para mostrar comparación de algoritmos
     @FXML
@@ -380,7 +398,6 @@ public class SimuladorController {
                     iter.remove();
                     animarAsignacionMemoria();
 
-
                     int memoriaUsada = gestorMemoria.calcularMemoriaUsada();
                     System.out.println("  Proceso " + p.getPid() + " movido a LISTO");
                     System.out.println("  Memoria usada: " + memoriaUsada + " / " + gestorMemoria.tamanoTotal + " MB");
@@ -456,7 +473,9 @@ public class SimuladorController {
     }
 
     private Proceso planificadorSJF() {
-        if (colaListos.isEmpty()) return null;
+        if (colaListos.isEmpty()) {
+            return null;
+        }
 
         Proceso masCorto = colaListos.get(0);
         for (Proceso p : colaListos) {
@@ -469,7 +488,9 @@ public class SimuladorController {
     }
 
     private Proceso planificadorRR() {
-        if (colaListos.isEmpty()) return null;
+        if (colaListos.isEmpty()) {
+            return null;
+        }
         return colaListos.remove(0);
     }
 
@@ -482,8 +503,8 @@ public class SimuladorController {
                     quantumRestanteNucleos[i]--;
                 }
 
-                System.out.println("  Núcleo " + i + ": PID " + nucleos[i].getPid() +
-                        " (restante: " + nucleos[i].getTiempoCPUrestante() + ")");
+                System.out.println("  Núcleo " + i + ": PID " + nucleos[i].getPid()
+                        + " (restante: " + nucleos[i].getTiempoCPUrestante() + ")");
             } else {
                 tiempoOciosoNucleos[i]++;
             }
@@ -493,7 +514,9 @@ public class SimuladorController {
     private void verificarFinalizacionesYDesalojos() {
         for (int i = 0; i < numNucleos; i++) {
             Proceso p = nucleos[i];
-            if (p == null) continue;
+            if (p == null) {
+                continue;
+            }
 
             // Proceso terminado
             if (p.getTiempoCPUrestante() <= 0) {
@@ -504,8 +527,7 @@ public class SimuladorController {
                 colaTerminados.add(p);
                 nucleos[i] = null;
                 totalCambiosContexto++;
-            }
-            // Quantum agotado (solo RR)
+            } // Quantum agotado (solo RR)
             else if ("Round Robin".equals(comboAlgoritmo.getValue()) && quantumRestanteNucleos[i] <= 0) {
                 System.out.println(" Quantum agotado para PID " + p.getPid());
                 p.setEstado(EstadoProceso.LISTO);
@@ -546,22 +568,22 @@ public class SimuladorController {
         double utilizacionCPU = (tiempoTotalCPU / (reloj * numNucleos)) * 100;
 
         String stats = String.format(
-                "═══════════════════════════════════════════\n" +
-                        "      ESTADÍSTICAS DE SIMULACIÓN\n" +
-                        "═══════════════════════════════════════════\n\n" +
-                        "Algoritmo: %s\n" +
-                        "Política de Reemplazo: %s\n" +
-                        "Tiempo Total: %d ticks\n" +
-                        "Procesos Terminados: %d\n\n" +
-                        "─── TIEMPOS PROMEDIO ───\n" +
-                        "• Tiempo de Retorno:    %.2f ticks\n" +
-                        "• Tiempo de Espera:     %.2f ticks\n" +
-                        "• Tiempo de Respuesta:  %.2f ticks\n\n" +
-                        "─── RENDIMIENTO DEL SISTEMA ───\n" +
-                        "• Utilización de CPU:   %.2f%%\n" +
-                        "• Cambios de Contexto:  %d\n" +
-                        "• Swaps Realizados:     %d\n" +
-                        "• Núcleos:              %d\n",
+                "═══════════════════════════════════════════\n"
+                + "      ESTADÍSTICAS DE SIMULACIÓN\n"
+                + "═══════════════════════════════════════════\n\n"
+                + "Algoritmo: %s\n"
+                + "Política de Reemplazo: %s\n"
+                + "Tiempo Total: %d ticks\n"
+                + "Procesos Terminados: %d\n\n"
+                + "─── TIEMPOS PROMEDIO ───\n"
+                + "• Tiempo de Retorno:    %.2f ticks\n"
+                + "• Tiempo de Espera:     %.2f ticks\n"
+                + "• Tiempo de Respuesta:  %.2f ticks\n\n"
+                + "─── RENDIMIENTO DEL SISTEMA ───\n"
+                + "• Utilización de CPU:   %.2f%%\n"
+                + "• Cambios de Contexto:  %d\n"
+                + "• Swaps Realizados:     %d\n"
+                + "• Núcleos:              %d\n",
                 comboAlgoritmo.getValue(),
                 comboPoliticaReemplazo.getValue(),
                 reloj,
@@ -614,7 +636,6 @@ public class SimuladorController {
             txtCPU.setText(sb.toString());
         }
 
-
         int memoriaUsada = gestorMemoria.calcularMemoriaUsada();
         int fragExterna = gestorMemoria.calcularFragmentacionExterna();
         int fragInterna = gestorMemoria.calcularFragmentacionInterna();
@@ -650,7 +671,9 @@ public class SimuladorController {
         double canvasWidth = canvasMemoria.getWidth();
         double canvasHeight = canvasMemoria.getHeight();
 
-        if (bloques.isEmpty()) return;
+        if (bloques.isEmpty()) {
+            return;
+        }
 
         double posX = 0;
         for (GestorMemoria.BloqueMemoria bloque : bloques) {
@@ -723,7 +746,7 @@ public class SimuladorController {
                 // Solo si ha ejecutado al menos 2 ticks
                 if (p.getTiempoEnCPU() >= 2) {
                     p.setEstado(EstadoProceso.ESPERANDO);
-                    long tiempoIO = (long)(random.nextInt(5) + 3); // 3-7 ticks
+                    long tiempoIO = (long) (random.nextInt(5) + 3); // 3-7 ticks
                     tiemposIO.put(p, tiempoIO);
                     colaEsperando.add(p);
                     nucleos[i] = null;

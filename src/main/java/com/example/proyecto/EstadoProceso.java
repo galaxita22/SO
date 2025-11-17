@@ -19,6 +19,6 @@ public enum EstadoProceso {
 
     @Override
     public String toString() {
-        return this.display; // JavaFX usará esto para mostrarlo en las tablas
+        return this.display;
     }
 }

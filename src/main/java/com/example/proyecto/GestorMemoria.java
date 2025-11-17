@@ -1,11 +1,10 @@
 package com.example.proyecto;
 
 import java.util.*;
+
 /**
- * Gestor de memoria mejorado con soporte para:
- * - Partición Dinámica (First-Fit)
- * - Paginación Simple
- * - Políticas de reemplazo: FIFO y LRU
+ * Gestor de memoria mejorado con soporte para: - Partición Dinámica (First-Fit)
+ * - Paginación Simple - Políticas de reemplazo: FIFO y LRU
  */
 public class GestorMemoria {
 
@@ -15,6 +14,7 @@ public class GestorMemoria {
 
     // Estructuras para partición dinámica
     static class BloqueMemoria {
+
         int id;
         int inicio;
         int tamano;
@@ -31,9 +31,17 @@ public class GestorMemoria {
             return pidProceso != null;
         }
 
-        public int getInicio() { return inicio; }
-        public int getTamano() { return tamano; }
-        public void setTamano(int tamano) { this.tamano = tamano; }
+        public int getInicio() {
+            return inicio;
+        }
+
+        public int getTamano() {
+            return tamano;
+        }
+
+        public void setTamano(int tamano) {
+            this.tamano = tamano;
+        }
 
         @Override
         public String toString() {
@@ -44,11 +52,11 @@ public class GestorMemoria {
 
     // Estructuras para paginación
     static class Pagina {
+
         int numeroPagina;
         Integer pidProceso; // null si está libre
         long ultimoAcceso; // Para LRU
         long tiempoAsignacion; // Para FIFO
-
 
         Pagina(int numeroPagina) {
             this.numeroPagina = numeroPagina;
@@ -105,8 +113,8 @@ public class GestorMemoria {
             tablaPaginas[i] = new Pagina(i);
         }
 
-        System.out.println("✓ Memoria inicializada: " + tamanoTotalMB + " MB");
-        System.out.println("  • Páginas totales: " + numPaginasTotal + " (" + TAMANO_PAGINA + " MB c/u)");
+        System.out.println("Memoria inicializada: " + tamanoTotalMB + " MB");
+        System.out.println("Páginas totales: " + numPaginasTotal + " (" + TAMANO_PAGINA + " MB c/u)");
     }
 
     /**
@@ -116,8 +124,6 @@ public class GestorMemoria {
         this.modo = modo;
         System.out.println("Modo de memoria cambiado a: " + modo);
     }
-
-
 
     /**
      * Cambia la política de reemplazo
@@ -143,7 +149,7 @@ public class GestorMemoria {
      */
     private boolean asignarMemoriaParticionDinamica(Proceso proceso) {
         int tamanoRequerido = proceso.getTamanoMemoria();
-        System.out.println("→ Asignando " + tamanoRequerido + "MB al proceso " + proceso.getPid() + " (Partición Dinámica)");
+        System.out.println("Asignando " + tamanoRequerido + "MB al proceso " + proceso.getPid() + " (Partición Dinámica)");
 
         ListIterator<BloqueMemoria> iter = bloquesLibres.listIterator();
 
@@ -166,12 +172,12 @@ public class GestorMemoria {
                     bloqueLibre.tamano -= tamanoRequerido;
                 }
 
-                System.out.println("✓ Memoria asignada exitosamente");
+                System.out.println("Memoria asignada exitosamente");
                 return true;
             }
         }
 
-        System.out.println("✗ No hay memoria contigua suficiente");
+        System.out.println("No hay memoria contigua suficiente");
         return false;
     }
 
@@ -182,8 +188,8 @@ public class GestorMemoria {
         int tamanoRequerido = proceso.getTamanoMemoria();
         int paginasNecesarias = (int) Math.ceil(tamanoRequerido / (double) TAMANO_PAGINA);
 
-        System.out.println("→ Asignando " + tamanoRequerido + "MB al proceso " + proceso.getPid() +
-                " (Paginación: " + paginasNecesarias + " páginas)");
+        System.out.println("Asignando " + tamanoRequerido + "MB al proceso " + proceso.getPid()
+                + " (Paginación: " + paginasNecesarias + " páginas)");
 
         // Buscar páginas libres
         List<Integer> paginasLibres = new ArrayList<>();
@@ -203,9 +209,9 @@ public class GestorMemoria {
 
             if (paginasReemplazadas != null) {
                 paginasLibres.addAll(paginasReemplazadas);
-                System.out.println("  ⟳ Reemplazo aplicado: " + paginasALiberar + " páginas liberadas");
+                System.out.println("Reemplazo aplicado: " + paginasALiberar + " páginas liberadas");
             } else {
-                System.out.println("✗ No se pudo aplicar reemplazo");
+                System.out.println("No se pudo aplicar reemplazo");
                 return false;
             }
         }
@@ -221,7 +227,7 @@ public class GestorMemoria {
         }
 
         tablaPaginasPorProceso.put(proceso.getPid(), paginasAsignadas);
-        System.out.println("✓ Páginas asignadas: " + paginasAsignadas);
+        System.out.println("Páginas asignadas: " + paginasAsignadas);
         return true;
     }
 
@@ -240,7 +246,7 @@ public class GestorMemoria {
      * Política FIFO: Reemplaza las páginas más antiguas
      */
     private List<Integer> aplicarFIFO(int cantidad) {
-        System.out.println("  Aplicando FIFO para liberar " + cantidad + " páginas...");
+        System.out.println("Aplicando FIFO para liberar " + cantidad + " páginas...");
 
         List<Pagina> paginasOcupadas = new ArrayList<>();
         for (Pagina p : tablaPaginas) {
@@ -268,7 +274,7 @@ public class GestorMemoria {
             p.pidProceso = null;
             paginasLiberadas.add(p.numeroPagina);
 
-            System.out.println("    FIFO: Página " + p.numeroPagina + " (PID " + pid + ") reemplazada");
+            System.out.println("FIFO: Página " + p.numeroPagina + " (PID " + pid + ") reemplazada");
         }
 
         return paginasLiberadas;
@@ -278,7 +284,7 @@ public class GestorMemoria {
      * Política LRU: Reemplaza las páginas menos recientemente usadas
      */
     private List<Integer> aplicarLRU(int cantidad) {
-        System.out.println("  Aplicando LRU para liberar " + cantidad + " páginas...");
+        System.out.println("Aplicando LRU para liberar " + cantidad + " páginas...");
 
         List<Pagina> paginasOcupadas = new ArrayList<>();
         for (Pagina p : tablaPaginas) {
@@ -303,7 +309,7 @@ public class GestorMemoria {
             p.pidProceso = null;
             paginasLiberadas.add(p.numeroPagina);
 
-            System.out.println("    LRU: Página " + p.numeroPagina + " (PID " + pid + ") reemplazada");
+            System.out.println("LRU: Página " + p.numeroPagina + " (PID " + pid + ") reemplazada");
         }
 
         return paginasLiberadas;
@@ -336,29 +342,29 @@ public class GestorMemoria {
                 int inicioBloque = i;
                 Integer pidActual = paginaActual.pidProceso;
 
-                // ✅ Agrupar páginas consecutivas del mismo proceso
-                while (i + 1 < tablaPaginas.length &&
-                        // Comparar si ambas tienen el mismo estado (ocupada/libre)
-                        (tablaPaginas[i + 1].pidProceso == null) == (pidActual == null) &&
-                        // Si están ocupadas, deben tener el mismo PID
+                // Agrupar páginas consecutivas del mismo proceso
+                while (i + 1 < tablaPaginas.length
+                        && // Comparar si ambas tienen el mismo estado (ocupada/libre)
+                        (tablaPaginas[i + 1].pidProceso == null) == (pidActual == null)
+                        && // Si están ocupadas, deben tener el mismo PID
                         Objects.equals(tablaPaginas[i + 1].pidProceso, pidActual)) {
                     i++;
                     tamanoBloque += TAMANO_PAGINA;
                 }
 
-                // ✅ Crear bloque con los 4 parámetros requeridos
+                // Crear bloque con los 4 parámetros requeridos
                 BloqueMemoria bloque = new BloqueMemoria(
-                        inicioBloque,                    // id
-                        inicioBloque * TAMANO_PAGINA,    // inicio
-                        tamanoBloque,                     // tamano
-                        pidActual                         // pidProceso (puede ser null si está libre)
+                        inicioBloque, // id
+                        inicioBloque * TAMANO_PAGINA, // inicio
+                        tamanoBloque, // tamano
+                        pidActual // pidProceso (puede ser null si está libre)
                 );
 
                 bloques.add(bloque);
                 i++;
             }
 
-            System.out.println("  📦 Bloques visuales generados: " + bloques.size());
+            System.out.println("Bloques visuales generados: " + bloques.size());
             return bloques;
 
         } else {
@@ -368,11 +374,10 @@ public class GestorMemoria {
             todos.addAll(bloquesLibres);
             todos.sort(Comparator.comparingInt(b -> b.inicio));
 
-            System.out.println("  📦 Bloques (Partición Dinámica): " + todos.size());
+            System.out.println("Bloques (Partición Dinámica): " + todos.size());
             return todos;
         }
     }
-
 
     /**
      * Libera la memoria de un proceso
@@ -423,11 +428,13 @@ public class GestorMemoria {
         }
 
         tablaPaginasPorProceso.remove(proceso.getPid());
-        System.out.println("✓ " + paginas.size() + " páginas liberadas");
+        System.out.println(paginas.size() + " páginas liberadas");
     }
 
     private void fusionarBloquesLibres() {
-        if (bloquesLibres.size() <= 1) return;
+        if (bloquesLibres.size() <= 1) {
+            return;
+        }
 
         bloquesLibres.sort(Comparator.comparingInt(BloqueMemoria::getInicio));
 
@@ -453,13 +460,12 @@ public class GestorMemoria {
      * Métodos de información y estadísticas
      */
     // En GestorMemoria.java
-
     public int calcularMemoriaUsada() {
         if (modo == ModoMemoria.PAGINACION) {
             // Contar páginas ocupadas usando !isLibre()
             int paginasOcupadas = 0;
             for (Pagina p : tablaPaginas) {
-                if (!p.isLibre()) {  // ✅ Usar isLibre() en lugar de p.ocupada
+                if (!p.isLibre()) {  // Usar isLibre() en lugar de p.ocupada
                     paginasOcupadas++;
                 }
             }
@@ -492,8 +498,8 @@ public class GestorMemoria {
     }
 
     /**
-     * Calcula la fragmentación interna (solo para paginación)
-     * La fragmentación interna ocurre en la última página de cada proceso
+     * Calcula la fragmentación interna (solo para paginación) La fragmentación
+     * interna ocurre en la última página de cada proceso
      */
     public int calcularFragmentacionInterna() {
         if (modo != ModoMemoria.PAGINACION) {
@@ -506,15 +512,15 @@ public class GestorMemoria {
             int pid = entry.getKey();
             List<Integer> paginas = entry.getValue();
 
-            if (paginas.isEmpty()) continue;
+            if (paginas.isEmpty()) {
+                continue;
+            }
 
             // Calcular cuánta memoria realmente usa el proceso
             // (esto requeriría almacenar el tamaño original, por simplicidad asumimos peor caso)
-
             // La última página probablemente tiene fragmentación
             // Fragmentación máxima por proceso = TAMANO_PAGINA - 1 (en el peor caso)
             // Para ser más preciso, necesitaríamos el tamaño exacto del proceso
-
             // Estimación conservadora: 50% del tamaño de página por proceso
             fragmentacionTotal += (TAMANO_PAGINA / 2);
         }
@@ -535,7 +541,9 @@ public class GestorMemoria {
         if (modo == ModoMemoria.PAGINACION) {
             int paginasLibres = 0;
             for (Pagina p : tablaPaginas) {
-                if (p.isLibre()) paginasLibres++;
+                if (p.isLibre()) {
+                    paginasLibres++;
+                }
             }
             stats.put("paginasLibres", paginasLibres);
             stats.put("paginasUsadas", numPaginasTotal - paginasLibres);
