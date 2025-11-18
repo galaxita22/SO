@@ -3,6 +3,7 @@ package com.example.proyecto;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
@@ -303,7 +304,7 @@ public class SimuladorController {
         btnCrearProceso.setDisable(true);
     }
 
-    @FXML
+   @FXML
     private void handleDetenerSimulacion() {
         if (timeline != null) {
             timeline.stop();
@@ -346,35 +347,237 @@ public class SimuladorController {
             return;
         }
 
-        Stage ventanaGraficas = new Stage();
-        ventanaGraficas.setTitle("Comparación de Algoritmos");
-
-        // Crear gráfico de barras
-        CategoryAxis xAxis = new CategoryAxis();
-        NumberAxis yAxis = new NumberAxis();
-        BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
-        barChart.setTitle("Comparación de Tiempos por Proceso");
-        xAxis.setLabel("Proceso");
-        yAxis.setLabel("Tiempo (ticks)");
-
-        // Series de datos
-        XYChart.Series<String, Number> serieEspera = new XYChart.Series<>();
-        serieEspera.setName("Tiempo de Espera");
-
-        XYChart.Series<String, Number> serieRetorno = new XYChart.Series<>();
-        serieRetorno.setName("Tiempo de Retorno");
-
-        XYChart.Series<String, Number> serieRespuesta = new XYChart.Series<>();
-        serieRespuesta.setName("Tiempo de Respuesta");
-
-        for (Proceso p : colaTerminados) {
-            String pid = "P" + p.getPid();
-            serieEspera.getData().add(new XYChart.Data<>(pid, p.getTiempoEspera()));
-            serieRetorno.getData().add(new XYChart.Data<>(pid, p.getTiempoRetorno()));
-            serieRespuesta.getData().add(new XYChart.Data<>(pid, p.getTiempoRespuesta()));
+        // Verificar que estemos en modo Paginación (único modo donde FIFO/LRU tiene sentido)
+        if (gestorMemoria.getEstadisticas().get("modo") != GestorMemoria.ModoMemoria.PAGINACION) {
+             mostrarError("Modo Incorrecto", "La comparación FIFO vs LRU solo aplica en modo Paginación.");
+             return;
         }
 
-        barChart.getData().addAll(serieEspera, serieRetorno, serieRespuesta);
+        // 2. Identificar políticas
+        GestorMemoria.PoliticaReemplazo politicaActual =
+            "LRU".equals(comboPoliticaReemplazo.getValue()) ? GestorMemoria.PoliticaReemplazo.LRU : GestorMemoria.PoliticaReemplazo.FIFO;
+
+        GestorMemoria.PoliticaReemplazo politicaComparar =
+            (politicaActual == GestorMemoria.PoliticaReemplazo.FIFO) ? GestorMemoria.PoliticaReemplazo.LRU : GestorMemoria.PoliticaReemplazo.FIFO;
+
+        // 3. Obtener métricas de la ejecución ACTUAL (la que el usuario acaba de ver)
+        double promedioEsperaActual = colaTerminados.stream().mapToLong(Proceso::getTiempoEspera).average().orElse(0);
+double promedioRetornoActual = colaTerminados.stream().mapToLong(p -> p.getTiempoFinalizacion() - p.getTiempoLlegada()).average().orElse(0);
+        // 4. Preparar y ejecutar la simulación en SEGUNDO PLANO (Headless)
+        System.out.println("Iniciando simulación en segundo plano con " + politicaComparar + "...");
+
+        // Clonamos los procesos originales para reiniciar sus tiempos
+        List<Proceso> procesosParaSimulacion = clonarProcesos(colaTerminados);
+
+        // Ejecutamos la simulación "falsa"
+        ResultadoSimulacion resultadoComparacion = ejecutarSimulacionHeadless(procesosParaSimulacion, politicaComparar);
+
+        // 5. Generar Gráfico Comparativo
+        mostrarVentanaComparacion(
+            politicaActual,
+            promedioEsperaActual,
+            promedioRetornoActual,
+            politicaComparar,
+            resultadoComparacion.promedioEspera,
+            resultadoComparacion.promedioRetorno
+        );
+    }
+
+
+    // MÉTODOS PARA LA COMPARACIÓN
+
+    // Clase simple para guardar resultados del "Headless"
+    private static class ResultadoSimulacion {
+        double promedioEspera;
+        double promedioRetorno;
+
+        ResultadoSimulacion(double esp, double ret) {
+            this.promedioEspera = esp;
+            this.promedioRetorno = ret;
+        }
+    }
+
+    /**
+     * Crea copias limpias de los procesos para poder volver a simularlos desde cero.
+     */
+    private List<Proceso> clonarProcesos(List<Proceso> origen) {
+        List<Proceso> clones = new ArrayList<>();
+        for (Proceso p : origen) {
+            Proceso clon = new Proceso(p.getPid(), p.getTiempoLlegada(), p.getDuracionCPU(), p.getTamanoMemoria());
+            clones.add(clon);
+        }
+
+        // 1. Primero por tiempo de llegada
+        // 2. Si empatan en tiempo, desempatar por PID
+        clones.sort(Comparator.comparingLong(Proceso::getTiempoLlegada)
+                .thenComparingInt(Proceso::getPid));
+
+        return clones;
+    }
+
+    /**
+     * Simulación lógica sin interfaz gráfica.
+     * Replica el bucle "pasoSimulacion" pero en un while loop rápido.
+     */
+    private ResultadoSimulacion ejecutarSimulacionHeadless(List<Proceso> procesosNuevos, GestorMemoria.PoliticaReemplazo politica) {
+        // 1. Configurar entorno aislado
+        GestorMemoria gestorHeadless = new GestorMemoria(2048); // Mismo tamaño
+        gestorHeadless.setModo(GestorMemoria.ModoMemoria.PAGINACION);
+        gestorHeadless.setPoliticaReemplazo(politica);
+
+        List<Proceso> hColaListos = new ArrayList<>();
+        List<Proceso> hColaTerminados = new ArrayList<>();
+        Proceso[] hNucleos = new Proceso[numNucleos];
+        int[] hQuantum = new int[numNucleos];
+
+        // Variables de control
+        long hReloj = 0;
+        int procesosTotales = procesosNuevos.size();
+
+        // Parámetros de algoritmo seleccionados en la UI
+        String algoritmo = comboAlgoritmo.getValue();
+        int quantumValor = 3;
+        try { quantumValor = Integer.parseInt(txtQuantum.getText()); } catch(Exception e){}
+
+        // Bucle de Simulación Rápida
+        while (hColaTerminados.size() < procesosTotales) {
+
+            // A. Nuevos -> Listos
+            Iterator<Proceso> it = procesosNuevos.iterator();
+            while (it.hasNext()) {
+                Proceso p = it.next();
+                if (p.getTiempoLlegada() <= hReloj) {
+                    if (gestorHeadless.asignarMemoria(p)) {
+                        p.setEstado(EstadoProceso.LISTO);
+                        hColaListos.add(p);
+                        it.remove();
+                    }
+                }
+            }
+
+            // B. Incrementar esperas
+            for (Proceso p : hColaListos) {
+                p.incrementarTiempoEspera();
+            }
+
+            // C. Asignar CPU (Scheduling simplificado para Headless)
+            for (int i = 0; i < numNucleos; i++) {
+                if (hNucleos[i] == null && !hColaListos.isEmpty()) {
+                    Proceso electo = null;
+
+                    // Lógica de selección
+                    if ("Round Robin".equals(algoritmo)) {
+                        electo = hColaListos.remove(0);
+                        hQuantum[i] = quantumValor;
+                    } else { // SJF
+                         Proceso masCorto = hColaListos.get(0);
+                         for(Proceso cand : hColaListos) {
+                             if(cand.getTiempoCPUrestante() < masCorto.getTiempoCPUrestante()) masCorto = cand;
+                         }
+                         electo = masCorto;
+                         hColaListos.remove(masCorto);
+                    }
+
+                    if (electo != null) {
+                        hNucleos[i] = electo;
+                        electo.setEstado(EstadoProceso.EJECUTANDO);
+                        if (electo.getTiempoInicioEjecucion() == -1) electo.setTiempoInicioEjecucion(hReloj);
+                    }
+                }
+            }
+
+            // D. Ejecutar CPU
+            for (int i = 0; i < numNucleos; i++) {
+                if (hNucleos[i] != null) {
+                    Proceso p = hNucleos[i];
+                    p.avanzarTiempoCPU();
+
+                    // Simular acceso a memoria para actualizar LRU
+                    gestorHeadless.accederMemoria(p);
+
+                    if ("Round Robin".equals(algoritmo)) hQuantum[i]--;
+
+                    // Verificar fin
+                    if (p.getTiempoCPUrestante() <= 0) {
+                        p.setTiempoFinalizacion(hReloj + 1); // +1 porque terminó en este tick
+                        p.setEstado(EstadoProceso.TERMINADO);
+                        gestorHeadless.liberarMemoria(p);
+                        hColaTerminados.add(p);
+                        hNucleos[i] = null;
+                    } else if ("Round Robin".equals(algoritmo) && hQuantum[i] <= 0) {
+                        p.setEstado(EstadoProceso.LISTO);
+                        hColaListos.add(p);
+                        hNucleos[i] = null;
+                    }
+                }
+            }
+
+            hReloj++;
+            // Failsafe para evitar bucles infinitos si algo sale mal
+            if (hReloj > 100000) break;
+        }
+
+        // Calcular Estadísticas del Headless
+        double avgEsp = hColaTerminados.stream().mapToLong(Proceso::getTiempoEspera).average().orElse(0);
+        double avgRet = hColaTerminados.stream().mapToLong(p -> p.getTiempoFinalizacion() - p.getTiempoLlegada()).average().orElse(0);
+
+        return new ResultadoSimulacion(avgEsp, avgRet);
+    }
+
+    /**
+     * Muestra la ventana con el gráfico de barras comparativo.
+     */
+    private void mostrarVentanaComparacion(
+            GestorMemoria.PoliticaReemplazo pol1, double esp1, double ret1,
+            GestorMemoria.PoliticaReemplazo pol2, double esp2, double ret2) {
+
+        Stage stage = new Stage();
+        stage.setTitle("Comparación: " + pol1 + " vs " + pol2);
+
+        CategoryAxis xAxis = new CategoryAxis();
+        xAxis.setLabel("Métrica");
+        NumberAxis yAxis = new NumberAxis();
+        yAxis.setLabel("Tiempo Promedio (Ticks)");
+
+        BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
+        barChart.setTitle("Impacto de Política de Reemplazo en Rendimiento");
+
+        // Serie 1: Actual
+        XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+        series1.setName(pol1.toString() + " (Actual)");
+        series1.getData().add(new XYChart.Data<>("Tiempo Espera", esp1));
+        series1.getData().add(new XYChart.Data<>("Tiempo Retorno", ret1));
+
+        // Serie 2: Simulada
+        XYChart.Series<String, Number> series2 = new XYChart.Series<>();
+        series2.setName(pol2.toString() + " (Simulado)");
+        series2.getData().add(new XYChart.Data<>("Tiempo Espera", esp2));
+        series2.getData().add(new XYChart.Data<>("Tiempo Retorno", ret2));
+
+        barChart.getData().addAll(series1, series2);
+
+        // Texto explicativo
+        Label note = new Label("Nota: La simulación comparativa utiliza los mismos tiempos de llegada, ráfagas y configuración de CPU (Quantum/Algoritmo).");
+        note.setWrapText(true);
+        note.setPadding(new Insets(10));
+
+        VBox root = new VBox(10, barChart, note);
+        root.setPadding(new Insets(15));
+
+        stage.setScene(new Scene(root, 600, 500));
+        stage.show();
+    }
+
+
+    // Verificar si hay algún proceso activo en cualquier núcleo
+    private boolean hayProcesosEnCPU() {
+        for (Proceso p : nucleos) {
+            if (p != null) {
+                return true;
+            }
+        }
+        return false;
+    }
 
         // Calcular promedios
         double avgEspera = colaTerminados.stream()
@@ -384,16 +587,7 @@ public class SimuladorController {
         double avgRespuesta = colaTerminados.stream()
                 .mapToLong(Proceso::getTiempoRespuesta).average().orElse(0);
 
-        Label lblPromedios = new Label(String.format(
-                "Promedios - Espera: %.2f | Retorno: %.2f | Respuesta: %.2f",
-                avgEspera, avgRetorno, avgRespuesta));
-        lblPromedios.setStyle("-fx-font-size: 14px; -fx-padding: 10;");
 
-        VBox vbox = new VBox(10, barChart, lblPromedios);
-        Scene scene = new Scene(vbox, 800, 600);
-        ventanaGraficas.setScene(scene);
-        ventanaGraficas.show();
-    }
 
     /**
      * Paso principal de simulación
