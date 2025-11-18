@@ -20,6 +20,10 @@ import javafx.stage.Stage;
 import javafx.scene.Scene;
 
 import java.util.*;
+//importar enum EstadoProceso para referenciar los estados de los procesos
+
+
+import static com.example.proyecto.EstadoProceso.NUEVO;
 
 /**
  * Controlador mejorado con soporte para múltiples algoritmos y políticas de
@@ -27,7 +31,6 @@ import java.util.*;
  */
 public class SimuladorController {
 
-    // --- Enlaces a la Vista ---
     @FXML
     private ComboBox<String> comboModoMemoria;
     @FXML
@@ -73,6 +76,7 @@ public class SimuladorController {
     private long reloj = 0;
     private int pidCounter = 1;
     private Timeline timeline;
+    private List<Color> colorPalette = new ArrayList<>();
 
     private GestorMemoria gestorMemoria;
     private List<Proceso> colaNuevos = new ArrayList<>();
@@ -80,6 +84,7 @@ public class SimuladorController {
     private List<Proceso> colaTerminados = new ArrayList<>();
     private Queue<Proceso> colaSwap = new LinkedList<>(); // Para swapping
     private List<Proceso> colaEsperando = new ArrayList<>(); // Para I/O
+    private List<Proceso> listaProcesos = new ArrayList<>();
 
     // --- Multinúcleo ---
     private final int numNucleos = 2;
@@ -146,9 +151,28 @@ public class SimuladorController {
         });
 
         txtQuantum.setDisable(true);
-
+        colorPalette.addAll( Arrays.asList(
+                Color.web("#F44336"), Color.web("#E91E63"), Color.web("#9C27B0"),
+                Color.web("#673AB7"), Color.web("#3F51B5"), Color.web("#2196F3"),
+                Color.web("#03A9F4"), Color.web("#00BCD4"), Color.web("#009688"),
+                Color.web("#4CAF50"), Color.web("#8BC34A"), Color.web("#CDDC39"),
+                Color.web("#FFEB3B"), Color.web("#FFC107"), Color.web("#FF9800"),
+                Color.web("#FF5722"), Color.web("#795548"), Color.web("#607D8B")
+        ) );
         // Configurar columnas de tablas
         configurarTablas();
+    }
+
+    /**
+     * Devuelve un color único basado en el PID del proceso
+     */
+    private Color getColorForPID(int pid) {
+        if (pid <= 0) { // Por si acaso
+            return Color.BLACK;
+        }
+        // Usamos el PID-1 como índice para que PID 1 use el color 0
+        int index = (pid - 1) % colorPalette.size();
+        return colorPalette.get(index);
     }
 
     /**
@@ -288,8 +312,25 @@ public class SimuladorController {
         btnIniciar.setDisable(false);
         btnDetener.setDisable(true);
         btnCrearProceso.setDisable(false);
+        reloj = 0;
 
         mostrarEstadisticasFinales();
+
+        colaNuevos.clear();
+        for (Proceso pTerminado : colaTerminados) {
+
+            // Creamos un objeto Proceso FRESCO
+            Proceso pNuevo = new Proceso(
+                    pTerminado.getPid(),             // Mismo PID
+                    pTerminado.getTiempoLlegada(),   // Misma llegada
+                    pTerminado.getDuracionCPU(),     // Misma duración original
+                    pTerminado.getTamanoMemoria()    // Misma memoria
+            );
+            colaNuevos.add(pNuevo);
+        }
+        tablaNuevos.setItems(FXCollections.observableArrayList(colaNuevos));
+        colaTerminados.clear();
+
     }
 
     // Método para mostrar comparación de algoritmos
@@ -675,23 +716,34 @@ public class SimuladorController {
             return;
         }
 
+        String modoActual = comboModoMemoria.getValue();
+        boolean esPaginacion = "Paginación".equals(modoActual);
+
         double posX = 0;
         for (GestorMemoria.BloqueMemoria bloque : bloques) {
             double ancho = (bloque.getTamano() / (double) gestorMemoria.tamanoTotal) * canvasWidth;
 
             if (bloque.isOcupado()) {
-                gc.setFill(Color.web("#4CAF50")); // Verde para ocupado
-                gc.fillRect(posX, 0, ancho, canvasHeight);
-                gc.setStroke(Color.web("#2E7D32"));
-                gc.strokeRect(posX, 0, ancho, canvasHeight);
+                gc.setFill(getColorForPID(bloque.pidProceso));
 
-                gc.setFill(Color.WHITE);
-                gc.fillText("P" + bloque.pidProceso, posX + 5, canvasHeight / 2);
+                gc.fillRect(posX, 0, ancho, canvasHeight);
+                if (!esPaginacion) {
+                    gc.setStroke(Color.web("#424242")); // Borde oscuro
+                    gc.strokeRect(posX, 0, ancho, canvasHeight);
+                }
+
+                gc.setFill(Color.BLACK); // Texto negro para que se lea bien
+
+                if (ancho > 15) {
+                    gc.fillText("P" + bloque.pidProceso, posX + 3, canvasHeight / 2 + 5);
+                }
             } else {
                 gc.setFill(Color.web("#E0E0E0")); // Gris para libre
                 gc.fillRect(posX, 0, ancho, canvasHeight);
-                gc.setStroke(Color.web("#9E9E9E"));
-                gc.strokeRect(posX, 0, ancho, canvasHeight);
+                if (!esPaginacion) {
+                    gc.setStroke(Color.web("#9E9E9E"));
+                    gc.strokeRect(posX, 0, ancho, canvasHeight);
+                }
 
                 gc.setFill(Color.web("#424242"));
                 if (ancho > 30) {
