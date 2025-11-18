@@ -84,7 +84,6 @@ public class SimuladorController {
     private List<Proceso> colaTerminados = new ArrayList<>();
     private Queue<Proceso> colaSwap = new LinkedList<>(); // Para swapping
     private List<Proceso> colaEsperando = new ArrayList<>(); // Para I/O
-    private List<Proceso> listaProcesos = new ArrayList<>();
 
     // --- Multinúcleo ---
     private final int numNucleos = 2;
@@ -333,7 +332,13 @@ public class SimuladorController {
 
     }
 
-    // Método para mostrar comparación de algoritmos
+    public void handleBorrarColaNuevos() {
+        colaNuevos.clear();
+        tablaNuevos.getItems().clear();
+        pidCounter = 1;
+    }
+
+    // Metodo para mostrar comparación de algoritmos
     @FXML
     private void handleComparar() {
         if (colaTerminados.isEmpty()) {
