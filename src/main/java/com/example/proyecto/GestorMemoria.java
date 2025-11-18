@@ -332,39 +332,23 @@ public class GestorMemoria {
      */
     public List<BloqueMemoria> getTodosLosBloques() {
         if (modo == ModoMemoria.PAGINACION) {
-            // Convertir páginas a bloques visuales
             List<BloqueMemoria> bloques = new ArrayList<>();
             int i = 0;
 
-            while (i < tablaPaginas.length) {
-                Pagina paginaActual = tablaPaginas[i];
-                int tamanoBloque = TAMANO_PAGINA;
-                int inicioBloque = i;
-                Integer pidActual = paginaActual.pidProceso;
-
-                // Agrupar páginas consecutivas del mismo proceso
-                while (i + 1 < tablaPaginas.length
-                        && // Comparar si ambas tienen el mismo estado (ocupada/libre)
-                        (tablaPaginas[i + 1].pidProceso == null) == (pidActual == null)
-                        && // Si están ocupadas, deben tener el mismo PID
-                        Objects.equals(tablaPaginas[i + 1].pidProceso, pidActual)) {
-                    i++;
-                    tamanoBloque += TAMANO_PAGINA;
-                }
-
-                // Crear bloque con los 4 parámetros requeridos
+            for (Pagina paginaActual : tablaPaginas) {
+                // Crea un bloque visual individual para CADA página de 4MB
                 BloqueMemoria bloque = new BloqueMemoria(
-                        inicioBloque, // id
-                        inicioBloque * TAMANO_PAGINA, // inicio
-                        tamanoBloque, // tamano
-                        pidActual // pidProceso (puede ser null si está libre)
+                        i, // id
+                        i * TAMANO_PAGINA, // inicio
+                        TAMANO_PAGINA, // tamaño (por ahora 4MB fijo)
+                        //TODO: dejar que el usuario decida el tamaño de página al seleccionar modo paginación
+                        paginaActual.pidProceso // pidProceso (puede ser null si está libre)
                 );
-
                 bloques.add(bloque);
                 i++;
             }
 
-            System.out.println("Bloques visuales generados: " + bloques.size());
+            // System.out.println("Bloques visuales generados (Paginación): " + bloques.size());
             return bloques;
 
         } else {
