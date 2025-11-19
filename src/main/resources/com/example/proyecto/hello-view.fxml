@@ -52,6 +52,12 @@
                 </rowConstraints>
             </GridPane>
             <Button fx:id="btnCrearProceso" maxWidth="Infinity" onAction="#handleCrearProceso" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;" text="Crear Proceso" />
+            <Button fx:id="btnBorrarColaNuevos"
+                    text="Borrar Cola de Nuevos"
+                    style="-fx-background-color: #f44336; -fx-text-fill: white; -fx-font-weight: bold;"
+                    onAction="#handleBorrarColaNuevos"
+                    maxWidth="Infinity" />
+
             <Separator />
             <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="CONFIGURACIÓN DE SIMULACIÓN" />
             <Separator />
